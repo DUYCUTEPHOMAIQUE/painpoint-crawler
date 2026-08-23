@@ -1,0 +1,42 @@
+name: Daily pain point crawl
+
+on:
+  schedule:
+    # 00:00 & 12:00 UTC = 07:00 & 19:00 giờ Việt Nam
+    - cron: "0 0,12 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daily-crawl
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Crawl pain points moi
+        run: python main.py daily --window week --min-pain 2
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+
+      - name: Commit du lieu & bao cao
+        run: |
+          git config user.name "painpoint-bot"
+          git config user.email "actions@github.com"
+          git add -f data/painpoints.db data/reports/ || true
+          git commit -m "[cron] crawl $(date -u +%Y-%m-%d_%H:%M)" || echo "Khong co gi moi"
+          git push

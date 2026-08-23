@@ -1,0 +1,55 @@
+reddit:
+  default_limit: 100
+  time_filter: week
+  listing: top
+  comments_per_post: 5
+
+discover:
+  min_pain_score: 2.0
+  subreddits:
+    - smallbusiness
+    - Entrepreneur
+    - startups
+    - freelancers
+    - freelance
+    - digitalnomad
+    - ecommerce
+    - shopify
+    - SaaS
+    - marketing
+    - sales
+    - productivity
+    - getdisciplined
+    - selfimprovement
+    - personalfinance
+    - jobs
+    - jobsearch
+    - careerguidance
+    - teachers
+    - Nursing
+    - sysadmin
+    - webdev
+    - learnprogramming
+    - offmychest
+    - TrueOffMyChest
+
+search:
+  sort: relevance
+
+sources:
+  hackernews:
+    min_points: 20
+  stackoverflow:
+    tags:
+      - python
+      - javascript
+      - react
+      - node.js
+      - sql
+      - docker
+      - aws
+      - devops
+  github:
+    queries:
+      - "state:open is:issue label:bug"
+      - "state:open is:issue"

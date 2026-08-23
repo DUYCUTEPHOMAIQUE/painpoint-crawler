@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/*.db
+data/export.*
+data/reports/
+data/cron.log
+.agents/
+.claude/
+.opencode/
+skills-lock.json
+opencode.json
