@@ -168,6 +168,27 @@ td a:hover { color: var(--primary); text-decoration: underline; }
   border: 1px solid var(--hairline); border-radius: 999px; padding: 1px 10px;
 }
 
+/* Copy button */
+.copy-btn {
+  appearance: none;
+  background: var(--canvas);
+  color: var(--body-strong);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: 5px 12px;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.copy-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+.copy-btn.copied {
+  border-color: var(--accent-teal);
+  color: #2e7466;
+  background: #ddeee8;
+}
+
 #status { padding: 40px; text-align: center; color: var(--muted); font-size: 17px; }
 
 footer {

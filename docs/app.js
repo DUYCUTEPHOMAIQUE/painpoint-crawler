@@ -17,7 +17,7 @@ let RENDERED = {};
 async function fetchPosts() {
   const platform = document.getElementById("f-platform").value;
   const days = parseInt(document.getElementById("f-days").value, 10);
-  let url = `${SUPABASE_URL}/rest/v1/posts?select=id,platform,subreddit,title,url,pain_score,num_comments,score,collected_at,selftext&order=collected_at.desc&limit=8000`;
+  let url = `${SUPABASE_URL}/rest/v1/posts?select=id,platform,subreddit,title,url,pain_score,num_comments,score,collected_at,created_utc,selftext,comments&order=collected_at.desc&limit=8000`;
   if (platform) url += `&platform=eq.${platform}`;
   if (days > 0) {
     const since = (Date.now() / 1000) - days * 86400;
@@ -107,7 +107,7 @@ function renderOverview(posts) {
 
 function renderPain(posts) {
   const top = [...posts].sort((a, b) => b.pain_score - a.pain_score).slice(0, 40);
-  document.querySelector("#topTable tbody").innerHTML = top.map(p => `
+  document.querySelector("#topTable tbody").innerHTML = top.map((p, i) => `
     <tr>
       <td class="pain">${p.pain_score}</td>
       <td><span class="tag ${p.platform}">${PLATFORM_LABEL[p.platform] || p.platform}</span></td>
@@ -116,7 +116,43 @@ function renderPain(posts) {
       <td class="mut">${esc(((p.selftext || "").replace(/\s+/g, " ").trim()).slice(0, 110))}${p.selftext && p.selftext.length > 110 ? "…" : ""}</td>
       <td>${p.score}</td>
       <td>${p.num_comments}</td>
-    </tr>`).join("") || '<tr><td colspan="7" class="mut">Chưa có dữ liệu</td></tr>';
+      <td><button class="copy-btn" data-idx="${i}" title="Copy chi tiết pain point">Copy</button></td>
+    </tr>`).join("") || '<tr><td colspan="8" class="mut">Chưa có dữ liệu</td></tr>';
+
+  window.__painRows = top;
+}
+
+async function copyPain(idx, btn) {
+  const p = (window.__painRows || [])[idx];
+  if (!p) return;
+  const content = ((p.selftext || "").replace(/\r/g, "")).trim() || "(bài không có nội dung)";
+  const comments = ((p.comments || "").split("\n---\n").filter(Boolean).map(c => "- " + c.replace(/\s+/g, " ").trim())).join("\n");
+  const text = [
+    `Title: ${p.title}`,
+    `URL: ${p.url}`,
+    `Nguồn: ${PLATFORM_LABEL[p.platform] || p.platform} | Cộng đồng: ${p.subreddit}`,
+    `Pain score: ${p.pain_score} | Upvote: ${p.score} | Comments: ${p.num_comments}`,
+    `Ngày đăng: ${new Date((p.created_utc || 0) * 1000).toISOString().slice(0, 10)}`,
+    ``,
+    `Nội dung:`,
+    content,
+  ];
+  if (comments) {
+    text.push(``, `Comments nổi bật:`, comments);
+  }
+  try {
+    await navigator.clipboard.writeText(text.join("\n"));
+  } catch (_) {
+    const ta = document.createElement("textarea");
+    ta.value = text.join("\n");
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  btn.textContent = "✓ Đã copy";
+  btn.classList.add("copied");
+  setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1600);
 }
 
 function renderTrending(trending) {
@@ -178,6 +214,11 @@ function activateTab(name) {
 document.getElementById("tabs").addEventListener("click", e => {
   const btn = e.target.closest(".tab");
   if (btn) activateTab(btn.dataset.tab);
+});
+
+document.querySelector("#topTable").addEventListener("click", e => {
+  const btn = e.target.closest(".copy-btn");
+  if (btn) copyPain(parseInt(btn.dataset.idx, 10), btn);
 });
 
 /* ── Charts ─────────────────────────────── */
