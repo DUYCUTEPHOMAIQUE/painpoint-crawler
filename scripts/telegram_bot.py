@@ -60,7 +60,7 @@ def fmt_trending(repos, n, days):
         lang = f" · {esc(r['language'])}" if r.get("language") else ""
         desc = esc((r.get("description") or "")[:80])
         lines.append(
-            f"<b>{i}. ⭐ {r['stars']}</b> · {r['perDay']}/ngày{gain}{lang}\n"
+            f"<b>{i}. ⭐ {r['stars']}</b> · {r.get('stars_per_day', 0):.0f}/ngày{gain}{lang}\n"
             f"<a href=\"{r['url']}\">{esc(r['full_name'])}</a>"
             + (f"\n<i>{desc}</i>" if desc else "")
         )
