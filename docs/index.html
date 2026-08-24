@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pain Point Dashboard</title>
+<title>Pain Point Radar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -33,55 +33,81 @@
       </select>
     </div>
   </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="overview">Tổng quan</button>
+    <button class="tab" data-tab="pain">Pain points</button>
+    <button class="tab" data-tab="trending">GitHub Trending</button>
+    <button class="tab" data-tab="runs">Lần crawl</button>
+  </nav>
 </header>
 
 <main>
-  <section class="hero">
-    <span class="eyebrow">Báo cáo hằng ngày</span>
-    <h1>Lắng nghe những nỗi đau<br>của thị trường.</h1>
-    <p class="lead">Thu thập tự động từ Reddit, Hacker News và StackOverflow — chấm điểm theo từ khổ đau và độ tương tác để bạn nhìn ra vấn đề cấp bách nhất.</p>
+  <!-- TAB: TỔNG QUAN -->
+  <section class="tab-pane active" data-pane="overview">
+    <section class="hero">
+      <span class="eyebrow">Báo cáo hằng ngày</span>
+      <h1>Lắng nghe những nỗi đau<br>của thị trường.</h1>
+      <p class="lead">Thu thập tự động từ Reddit, Hacker News và StackOverflow — chấm điểm theo từ khổ đau và độ tương tác để bạn nhìn ra vấn đề cấp bách nhất.</p>
+    </section>
+
+    <section class="kpis" id="kpis"></section>
+
+    <div class="grid-2">
+      <div class="card"><h2>Posts theo ngày</h2><canvas id="chartDaily"></canvas></div>
+      <div class="card"><h2>Theo nguồn</h2><canvas id="chartSource"></canvas></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card"><h2>Pain score trung bình theo nguồn</h2><canvas id="chartPain"></canvas></div>
+      <div class="card"><h2>Các lần crawl</h2><canvas id="chartRunsMini"></canvas></div>
+    </div>
   </section>
 
-  <section class="kpis" id="kpis"></section>
-
-  <section class="grid-2">
-    <div class="card"><h2>Posts theo ngày</h2><canvas id="chartDaily"></canvas></div>
-    <div class="card"><h2>Theo nguồn</h2><canvas id="chartSource"></canvas></div>
+  <!-- TAB: PAIN POINTS -->
+  <section class="tab-pane" data-pane="pain">
+    <div class="pane-head">
+      <h1 class="pane-title">Top pain points</h1>
+      <p class="lead">Những vấn đề được nhắc nhiều và mang cảm xúc tiêu cực rõ nhất, xếp theo pain score.</p>
+    </div>
+    <div class="card table-card">
+      <table id="topTable">
+        <thead><tr><th>Pain</th><th>Nguồn</th><th>Cộng đồng</th><th>Tiêu đề</th><th>Nội dung</th><th>↑</th><th>💬</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="grid-2">
-    <div class="card"><h2>Pain score trung bình theo nguồn</h2><canvas id="chartPain"></canvas></div>
-    <div class="card"><h2>Các lần crawl</h2><canvas id="chartRuns"></canvas></div>
+  <!-- TAB: GITHUB TRENDING -->
+  <section class="tab-pane" data-pane="trending">
+    <div class="pane-head">
+      <h1 class="pane-title">GitHub Trending</h1>
+      <p class="lead">Repo mới nổi trong tuần, xếp theo số sao. Cột tăng trưởng chính xác hơn khi bot đã đo ít nhất 2 lần.</p>
+    </div>
+    <div class="card table-card">
+      <table id="trendTable">
+        <thead><tr><th>⭐</th><th>Tăng 7 ngày</th><th>Repo</th><th>Ngôn ngữ</th><th>Mô tả</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="band-dark">
-    <h2>Top pain points</h2>
-    <p class="band-sub">Những vấn đề được cộng đồng nhắc đến nhiều và mang cảm xúc tiêu cực rõ nhất.</p>
-    <table id="topTable">
-      <thead><tr><th>Pain</th><th>Nguồn</th><th>Cộng đồng</th><th>Tiêu đề</th><th>↑</th><th>💬</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </section>
-
-  <section class="card">
-    <h2>GitHub Trending</h2>
-    <p class="mut" style="margin:-8px 0 16px;">Repo mới nổi trong tuần — xếp theo số sao, kèm mức tăng theo lịch sử bot.</p>
-    <table id="trendTable">
-      <thead><tr><th>⭐</th><th>Tăng 7 ngày</th><th>Repo</th><th>Ngôn ngữ</th><th>Mô tả</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </section>
-
-  <section class="card">
-    <h2>Lần crawl gần nhất</h2>
-    <table id="runsTable">
-      <thead><tr><th>Thời gian</th><th>Nguồn</th><th>Số posts</th><th>Pain TB</th></tr></thead>
-      <tbody></tbody>
-    </table>
+  <!-- TAB: LẦN CRAWL -->
+  <section class="tab-pane" data-pane="runs">
+    <div class="pane-head">
+      <h1 class="pane-title">Lịch sử crawl</h1>
+      <p class="lead">Bot chạy tự động lúc 7h sáng và 7h tối (giờ Việt Nam) qua GitHub Actions.</p>
+    </div>
+    <div class="card"><h2>Số posts mỗi lần chạy</h2><canvas id="chartRunsFull"></canvas></div>
+    <div class="card table-card" style="margin-top:16px;">
+      <table id="runsTable">
+        <thead><tr><th>Thời gian (UTC)</th><th>Nguồn</th><th>Số posts</th><th>Pain TB</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </section>
 </main>
 
-<footer>Bot chạy tự động trên GitHub Actions mỗi ngày · Dữ liệu lưu trên Supabase</footer>
+<footer>Pain Point Radar · bot chạy tự động mỗi ngày · dữ liệu lưu trên Supabase</footer>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
