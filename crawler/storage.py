@@ -4,6 +4,43 @@ import os
 import sqlite3
 import time
 
+import requests
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+POSTS_COLUMNS = [
+    "id", "platform", "subreddit", "title", "selftext", "author", "url",
+    "created_utc", "collected_at", "score", "num_comments",
+    "upvote_ratio", "pain_score", "matched_keywords", "query", "comments",
+]
+
+
+def _sb_headers():
+    return {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+
+
+def push_posts_supabase(posts):
+    if not (SUPABASE_URL and SUPABASE_KEY and posts):
+        return 0
+    sent = 0
+    for i in range(0, len(posts), 200):
+        chunk = [{c: p.get(c) for c in POSTS_COLUMNS} for p in posts[i:i + 200]]
+        resp = requests.post(
+            f"{SUPABASE_URL}/rest/v1/posts",
+            headers=_sb_headers(),
+            json=chunk,
+            timeout=60,
+        )
+        if resp.status_code not in (200, 201):
+            raise RuntimeError(f"Supabase upsert lỗi {resp.status_code}: {resp.text[:300]}")
+        sent += len(chunk)
+    return sent
+
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "painpoints.db")
 
 SCHEMA = """
@@ -70,6 +107,11 @@ def save_posts(posts):
                 p = {**p, "platform": "reddit"}
             conn.execute(sql, tuple(p.get(f) for f in fields))
             saved += 1
+    try:
+        push_posts_supabase(posts)
+    except Exception as e:
+        import sys
+        print(f"[warn] Supabase sync lỗi: {e}", file=sys.stderr)
     return saved
 
 
