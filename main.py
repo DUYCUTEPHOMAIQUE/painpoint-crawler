@@ -345,7 +345,9 @@ def cmd_daily(args):
             console.print(f"[yellow][daily] Hacker News (mới nhất, {window})...[/yellow]")
             try:
                 posts = hackernews.discover(limit=args.limit, time_filter=window,
-                                            min_points=0)
+                                            min_points=0,
+                                            with_comments=args.comments,
+                                            comments_limit=comments_limit)
             except Exception as e:
                 console.print(f"[red]Lỗi Hacker News: {e}[/red]")
                 posts = []
@@ -355,7 +357,9 @@ def cmd_daily(args):
                 console.print(f"[yellow][daily] StackOverflow #{tag} (mới nhất, {window})...[/yellow]")
                 try:
                     posts = stackexchange.discover(tag=tag, limit=args.limit,
-                                                   time_filter=window, sort="creation")
+                                                   time_filter=window, sort="creation",
+                                                   with_comments=args.comments,
+                                                   comments_limit=comments_limit)
                 except Exception as e:
                     console.print(f"[red]Lỗi tag {tag}: {e}[/red]")
                     continue
@@ -365,13 +369,24 @@ def cmd_daily(args):
                 console.print(f'[yellow][daily] GitHub "{q}" ({window})...[/yellow]')
                 try:
                     posts = github.discover(query=q, limit=args.limit,
-                                            time_filter=window)
+                                            time_filter=window,
+                                            with_comments=args.comments,
+                                            comments_limit=comments_limit)
                 except Exception as e:
                     console.print(f"[red]Lỗi GitHub '{q}': {e}[/red]")
                     continue
                 collect(posts, f"gh:{q}")
 
-    report_path = write_report(all_new, min_pain)
+    trending = []
+    try:
+        console.print("[yellow][daily] GitHub Trending repos...[/yellow]")
+        trending = github.trending_repos(window_days=7, limit=20)
+        storage.save_star_snapshots(trending)
+    except Exception as e:
+        console.print(f"[red]Lỗi trending: {e}[/red]")
+    growth = storage.star_growth(days=7)
+
+    report_path = write_report(all_new, min_pain, trending=trending, growth=growth)
 
     hot = sorted([p for p in all_new if p["pain_score"] >= min_pain],
                  key=lambda x: -x["pain_score"])
@@ -387,14 +402,13 @@ def _md_cell(text, limit=140):
     return text[:limit] + ("…" if len(text) > limit else "")
 
 
-def write_report(all_new, min_pain):
-    if not all_new:
+def write_report(all_new, min_pain, trending=None, growth=None):
+    if not all_new and not trending:
         return None
     date_str = time.strftime("%Y-%m-%d")
     out_dir = os.path.join("data", "reports")
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, f"{date_str}.md")
-    mode = "a" if os.path.exists(path) else "w"
     lines = ["", f"## Run {time.strftime('%H:%M')} — {len(all_new)} post mới", ""]
     labels = {"reddit": "Reddit", "hn": "Hacker News", "so": "StackOverflow",
               "gh": "GitHub Issues"}
@@ -421,9 +435,60 @@ def write_report(all_new, min_pain):
                 f"| {p['score']} | {p['num_comments']} |"
             )
         lines.append("")
+    if trending:
+        lines.append(f"### GitHub Trending — top repo mới nổi ({len(trending)})")
+        lines.append("")
+        lines.append("| ⭐ | ⭐/ngày | Repo | Ngôn ngữ | Mô tả |")
+        lines.append("|---|---|---|---|---|")
+        for r in trending[:20]:
+            lines.append(
+                f"| {r['stars']} | {r['stars_per_day']} "
+                f"| [{r['full_name']}]({r['url']}) "
+                f"| {r['language']} | {_md_cell(r['description'], 100)} |"
+            )
+        lines.append("")
+    if growth:
+        lines.append(f"### GitHub tăng sao nhanh nhất theo lịch sử bot ({len(growth)})")
+        lines.append("")
+        lines.append("| Tăng ⭐ | Từ → Đến | Repo |")
+        lines.append("|---|---|---|")
+        for g in growth:
+            lines.append(f"| +{g['gain']} | {g['min_stars']} → {g['max_stars']} "
+                         f"| [{g['full_name']}](https://github.com/{g['full_name']}) |")
+        lines.append("")
     with open(path, "a", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     return path
+
+
+def cmd_trending(args):
+    storage.init_db()
+    console.print(f"[yellow]Top {args.limit} repo mới trong {args.days} ngày qua, xếp theo sao...[/yellow]")
+    repos = github.trending_repos(window_days=args.days, limit=args.limit)
+    saved = storage.save_star_snapshots(repos)
+
+    t = Table(title=f"GitHub Trending — repo mới nổi ({args.days} ngày qua)")
+    t.add_column("⭐", justify="right", style="bold yellow")
+    t.add_column("⭐/ngày", justify="right")
+    t.add_column("Repo", style="cyan", max_width=40, overflow="fold")
+    t.add_column("Ngôn ngữ")
+    t.add_column("Mô tả", max_width=50, overflow="fold")
+    for r in repos:
+        t.add_row(str(r["stars"]), str(r["stars_per_day"]), r["full_name"],
+                  r["language"], r["description"][:80])
+    console.print(t)
+    console.print(f"[green]Đã lưu {saved} snapshot sao[/green] (chạy hằng ngày để có lịch sử đo tăng trưởng)")
+
+    growth = storage.star_growth(days=7)
+    if growth:
+        g = Table(title="Tăng sao nhanh nhất theo lịch sử bot (7 ngày)")
+        g.add_column("+⭐", justify="right", style="bold green")
+        g.add_column("Từ → Đến", justify="right")
+        g.add_column("Repo", style="cyan")
+        for row in growth:
+            g.add_row(f"+{row['gain']}", f"{row['min_stars']} → {row['max_stars']}",
+                      row["full_name"])
+        console.print(g)
 
 
 def cmd_export(args):
@@ -511,7 +576,15 @@ def main():
                          help="Ghi đè danh sách subreddit (mặc định: config.yaml)")
     p_daily.add_argument("--sources", dest="sources", default="auto",
                          help="Giới hạn nguồn (dấu phẩy): reddit, arctic, hn, so, gh. Mặc định: tất cả")
+    p_daily.add_argument("--comments", action=argparse.BooleanOptionalAction, default=True,
+                         help="Lấy thêm comments/answers cho hn/so/gh (mặc định: bật). Reddit vẫn tắt trừ khi dùng discover --with-comments")
     p_daily.set_defaults(func=cmd_daily)
+
+    p_tr = sub.add_parser("trending",
+                          help="Top repo GitHub mới nổi theo sao + tăng trưởng sao theo lịch sử bot")
+    p_tr.add_argument("--days", type=int, default=7, help="Cửa sổ 'repo mới tạo trong N ngày' (mặc định: 7)")
+    p_tr.add_argument("--limit", type=int, default=20, help="Số repo (mặc định: 20)")
+    p_tr.set_defaults(func=cmd_trending)
 
     p_e = sub.add_parser("export", help="Xuất dữ liệu đã lưu ra CSV/JSON")
     p_e.add_argument("--format", choices=["csv", "json"], default="csv")

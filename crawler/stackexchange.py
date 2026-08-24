@@ -72,14 +72,8 @@ def discover(tag=None, limit=100, time_filter="month", sort="votes",
     if time_filter in TIME_DELTAS:
         params["fromdate"] = int(time.time() - TIME_DELTAS[time_filter])
     questions = _get("/questions", params)
-    posts = []
-    for q in questions:
-        comments = None
-        if with_comments:
-            comments = fetch_answers(q.get("question_id"), comments_limit)
-            time.sleep(0.2)
-        posts.append(_record(q, comments=comments))
-    return posts
+    return _collect(questions, query=None, with_comments=with_comments,
+                    comments_limit=comments_limit)
 
 
 def search(query, limit=100, time_filter="week", tag=None,
@@ -91,11 +85,18 @@ def search(query, limit=100, time_filter="week", tag=None,
     if time_filter in TIME_DELTAS:
         params["fromdate"] = int(time.time() - TIME_DELTAS[time_filter])
     questions = _get("/search/advanced", params)
+    return _collect(questions, query=query, with_comments=with_comments,
+                    comments_limit=comments_limit)
+
+
+def _collect(questions, query, with_comments, comments_limit):
+    answer_budget = 5
     posts = []
     for q in questions:
         comments = None
-        if with_comments:
+        if with_comments and answer_budget > 0:
             comments = fetch_answers(q.get("question_id"), comments_limit)
+            answer_budget -= 1
             time.sleep(0.2)
         posts.append(_record(q, query=query, comments=comments))
     return posts

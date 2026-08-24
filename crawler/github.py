@@ -86,15 +86,42 @@ def _run(query, limit, time_filter, with_comments, comments_limit):
               "per_page": min(limit, 50), "sort": "comments", "order": "desc"}
     data = _get("/search/issues", params)
     posts = []
+    comment_budget = 15
     for item in data.get("items", []):
         if item.get("pull_request"):
             continue
         comments = None
-        if with_comments:
+        if with_comments and comment_budget > 0:
             comments = fetch_issue_comments(item, comments_limit)
+            comment_budget -= 1
             time.sleep(0.5)
         posts.append(_record(item, query=query, comments=comments))
     return posts
+
+
+def trending_repos(window_days=7, limit=20):
+    since = datetime.fromtimestamp(time.time() - window_days * 86400, tz=timezone.utc)
+    data = _get("/search/repositories",
+                {"q": f"created:>={since:%Y-%m-%d}", "sort": "stars",
+                 "order": "desc", "per_page": min(limit, 50)})
+    out = []
+    for r in data.get("items", []):
+        stars = r.get("stargazers_count") or 0
+        try:
+            created = datetime.fromisoformat(
+                (r.get("created_at") or "").replace("Z", "+00:00")).timestamp()
+            age_days = max((time.time() - created) / 86400, 1 / 24)
+        except ValueError:
+            age_days = 1.0
+        out.append({
+            "full_name": r.get("full_name") or "",
+            "url": r.get("html_url") or "",
+            "description": (r.get("description") or "")[:200],
+            "stars": int(stars),
+            "stars_per_day": round(stars / age_days, 1),
+            "language": r.get("language") or "",
+        })
+    return out
 
 
 def fetch_issue_comments(item, limit=5):

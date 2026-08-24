@@ -2,6 +2,7 @@ import csv
 import json
 import os
 import sqlite3
+import time
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "painpoints.db")
 
@@ -26,6 +27,12 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 CREATE INDEX IF NOT EXISTS idx_posts_subreddit ON posts(subreddit);
 CREATE INDEX IF NOT EXISTS idx_posts_pain ON posts(pain_score DESC);
+CREATE TABLE IF NOT EXISTS repo_stars (
+    full_name TEXT NOT NULL,
+    stars INTEGER NOT NULL,
+    captured_at REAL NOT NULL,
+    PRIMARY KEY (full_name, captured_at)
+);
 """
 
 
@@ -64,6 +71,32 @@ def save_posts(posts):
             conn.execute(sql, tuple(p.get(f) for f in fields))
             saved += 1
     return saved
+
+
+def save_star_snapshots(repos):
+    if not repos:
+        return 0
+    now = time.time()
+    with _connect() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO repo_stars (full_name, stars, captured_at) VALUES (?,?,?)",
+            [(r["full_name"], r["stars"], now) for r in repos],
+        )
+    return len(repos)
+
+
+def star_growth(days=7, limit=20):
+    since = time.time() - days * 86400
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT full_name, MIN(stars) AS min_stars, MAX(stars) AS max_stars, "
+            "MAX(stars) - MIN(stars) AS gain "
+            "FROM repo_stars WHERE captured_at > ? "
+            "GROUP BY full_name HAVING COUNT(*) > 1 "
+            "ORDER BY gain DESC LIMIT ?",
+            (since, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def filter_new(posts):

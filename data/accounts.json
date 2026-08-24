@@ -1,0 +1,16 @@
+{
+  "reddit": {
+    "accounts": [
+      {
+        "label": "duepickle6313",
+        "username": "DuePickle6313",
+        "email": "duy24.knowloot@gmail.com",
+        "password": "RedditCrawl2024!",
+        "client_id": "",
+        "client_secret": "",
+        "app_status": "pending - new account blocked by Reddit, needs age/phone verify",
+        "created_at": "2026-08-24"
+      }
+    ]
+  }
+}
