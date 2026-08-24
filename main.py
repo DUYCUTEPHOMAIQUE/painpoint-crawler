@@ -382,6 +382,11 @@ def cmd_daily(args):
         console.print(f"Báo cáo: {report_path}")
 
 
+def _md_cell(text, limit=140):
+    text = (text or "").replace("\n", " ").replace("|", "/").strip()
+    return text[:limit] + ("…" if len(text) > limit else "")
+
+
 def write_report(all_new, min_pain):
     if not all_new:
         return None
@@ -391,21 +396,30 @@ def write_report(all_new, min_pain):
     path = os.path.join(out_dir, f"{date_str}.md")
     mode = "a" if os.path.exists(path) else "w"
     lines = ["", f"## Run {time.strftime('%H:%M')} — {len(all_new)} post mới", ""]
+    labels = {"reddit": "Reddit", "hn": "Hacker News", "so": "StackOverflow",
+              "gh": "GitHub Issues"}
     for plat in ("reddit", "hn", "so", "gh"):
         items = sorted([p for p in all_new if (p.get("platform") or "reddit") == plat
                         and p["pain_score"] >= min_pain],
                        key=lambda x: -x["pain_score"])[:20]
         if not items:
             continue
-        label = {"reddit": "Reddit", "hn": "Hacker News", "so": "StackOverflow",
-                 "gh": "GitHub Issues"}[plat]
-        lines.append(f"### {label} ({len(items)} pain point mới)")
+        lines.append(f"### {labels[plat]} ({len(items)} pain point mới)")
         lines.append("")
+        lines.append("| Pain | Tiêu đề | Nội dung | Cộng đồng | ↑ | 💬 |")
+        lines.append("|---|---|---|---|---|---|")
         for p in items:
-            community = p["subreddit"].split(",")[0].split(" ")[0][:40]
-            title = p["title"][:120].replace("\n", " ")
-            lines.append(f"- **[{p['pain_score']}]** [{title}]({p['url']}) "
-                         f"— `{community}` — {p['score']}↑ {p['num_comments']}💬")
+            title = _md_cell(p["title"], 90)
+            url = p["url"]
+            community = _md_cell(p["subreddit"], 30)
+            content = p.get("selftext") or ""
+            if not content.strip():
+                content = p.get("comments") or ""
+            lines.append(
+                f"| **{p['pain_score']}** | [{title}]({url}) "
+                f"| {_md_cell(content)} | {community} "
+                f"| {p['score']} | {p['num_comments']} |"
+            )
         lines.append("")
     with open(path, "a", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
