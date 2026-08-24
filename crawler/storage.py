@@ -29,7 +29,12 @@ def push_posts_supabase(posts):
         return 0
     sent = 0
     for i in range(0, len(posts), 200):
-        chunk = [{c: p.get(c) for c in POSTS_COLUMNS} for p in posts[i:i + 200]]
+        chunk = []
+        for p in posts[i:i + 200]:
+            rec = {c: p.get(c) for c in POSTS_COLUMNS}
+            if not rec.get("platform"):
+                rec["platform"] = "reddit"
+            chunk.append(rec)
         resp = requests.post(
             f"{SUPABASE_URL}/rest/v1/posts",
             headers=_sb_headers(),
