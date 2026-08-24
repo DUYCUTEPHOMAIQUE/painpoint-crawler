@@ -6,12 +6,12 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
-from crawler import arctic, bluesky, crawler, devto, github, hackernews, lobsters, mediumfeed, stackexchange, storage
+from crawler import appstore, arctic, bluesky, crawler, devto, github, hackernews, lemmy, lobsters, mediumfeed, playstore, stackexchange, storage
 from crawler.client import get_reddit, has_credentials
 
 console = Console()
 
-KNOWN_SOURCES = {"auto", "reddit", "arctic", "hn", "so", "gh", "dv", "md", "lb", "bs"}
+KNOWN_SOURCES = {"auto", "reddit", "arctic", "hn", "so", "gh", "dv", "md", "lb", "bs", "asr", "gpr", "lm"}
 
 
 def resolve_sources(args):
@@ -190,6 +190,45 @@ def cmd_discover(args):
                 saved = storage.save_posts(posts)
                 all_posts.extend(posts)
                 console.print(f"  -> {len(posts)} posts lấy về, {saved} lưu DB")
+        elif src == "lm":
+            for comm in scfg.get("lemmy", {}).get("communities", []):
+                console.print(f"[yellow]Đang quét Lemmy c/{comm}...[/yellow]")
+                try:
+                    posts = lemmy.discover(community=comm, limit=args.limit,
+                                           time_filter=time_filter)
+                except Exception as e:
+                    console.print(f"[red]Lỗi c/{comm}: {e}[/red]")
+                    continue
+                saved = storage.save_posts(posts)
+                all_posts.extend(posts)
+                console.print(f"  -> {len(posts)} posts lấy về, {saved} lưu DB")
+        elif src == "asr":
+            for app in scfg.get("appstore", {}).get("apps", []):
+                name = app["name"] if isinstance(app, dict) else str(app)
+                aid = app["id"] if isinstance(app, dict) else str(app)
+                console.print(f"[yellow]Đang quét App Store reviews: {name}...[/yellow]")
+                try:
+                    posts = appstore.discover(app=aid, name=name, limit=args.limit,
+                                              time_filter=time_filter,
+                                              country=scfg.get("appstore", {}).get("country", "us"))
+                except Exception as e:
+                    console.print(f"[red]Lỗi {name}: {e}[/red]")
+                    continue
+                saved = storage.save_posts(posts)
+                all_posts.extend(posts)
+                console.print(f"  -> {len(posts)} reviews lấy về, {saved} lưu DB")
+        elif src == "gpr":
+            for app in scfg.get("playstore", {}).get("apps", []):
+                console.print(f"[yellow]Đang quét Google Play reviews: {app}...[/yellow]")
+                try:
+                    posts = playstore.discover(app=app, limit=args.limit,
+                                               time_filter=time_filter)
+                except Exception as e:
+                    console.print(f"[red]Lỗi {app}: {e}[/red]")
+                    continue
+                saved = storage.save_posts(posts)
+                all_posts.extend(posts)
+                console.print(f"  -> {len(posts)} reviews lấy về, {saved} lưu DB")
         elif src == "gh":
             queries = scfg.get("github", {}).get("queries", [])
             for q in queries:
@@ -327,7 +366,9 @@ def cmd_search(args):
                 seen.update(p["id"] for p in posts)
                 all_posts.extend(posts)
                 console.print(f"  -> {len(posts)} kết quả")
-        elif src in ("dv", "md", "lb"):
+        elif src in ("dv", "md", "lb", "lm", "asr", "gpr"):
+            if src == "gpr":
+                continue
             console.print(f"[dim]Nguồn {src} chỉ hỗ trợ discover theo tag (không có API tìm kiếm) — bỏ qua trong lệnh search.[/dim]")
         elif src == "gh":
             for q in queries:
@@ -366,7 +407,7 @@ def cmd_daily(args):
     gh_queries = scfg.get("github", {}).get("queries", [])
     raw_sources = getattr(args, "sources", None)
     if raw_sources in (None, "auto"):
-        sources = ["auto", "hn", "so", "dv", "md", "lb", "bs"]
+        sources = ["auto", "hn", "so", "dv", "md", "lb", "bs", "lm", "asr", "gpr"]
     else:
         sources = [s.strip() for s in raw_sources.split(",") if s.strip()]
         unknown = [s for s in sources if s not in KNOWN_SOURCES]
@@ -476,6 +517,39 @@ def cmd_daily(args):
                     console.print(f"[red]Lỗi Bluesky '{q}': {e}[/red]")
                     continue
                 collect(posts, f"bs:{q}")
+        elif actual == "lm":
+            for comm in scfg.get("lemmy", {}).get("communities", []):
+                console.print(f"[yellow][daily] Lemmy c/{comm} ({window})...[/yellow]")
+                try:
+                    posts = lemmy.discover(community=comm, limit=args.limit,
+                                           time_filter=window)
+                except Exception as e:
+                    console.print(f"[red]Lỗi c/{comm}: {e}[/red]")
+                    continue
+                collect(posts, f"lm/{comm}")
+        elif actual == "asr":
+            for app in scfg.get("appstore", {}).get("apps", []):
+                name = app["name"] if isinstance(app, dict) else str(app)
+                aid = app["id"] if isinstance(app, dict) else str(app)
+                console.print(f"[yellow][daily] App Store {name}...[/yellow]")
+                try:
+                    posts = appstore.discover(app=aid, limit=args.limit,
+                                              time_filter=window,
+                                              country=scfg.get("appstore", {}).get("country", "us"))
+                except Exception as e:
+                    console.print(f"[red]Lỗi {name}: {e}[/red]")
+                    continue
+                collect(posts, f"asr/{name}")
+        elif actual == "gpr":
+            for app in scfg.get("playstore", {}).get("apps", []):
+                console.print(f"[yellow][daily] Google Play {app}...[/yellow]")
+                try:
+                    posts = playstore.discover(app=app, limit=args.limit,
+                                               time_filter=window)
+                except Exception as e:
+                    console.print(f"[red]Lỗi {app}: {e}[/red]")
+                    continue
+                collect(posts, f"gpr/{app}")
         elif actual == "gh":
             for q in gh_queries:
                 console.print(f'[yellow][daily] GitHub "{q}" ({window})...[/yellow]')

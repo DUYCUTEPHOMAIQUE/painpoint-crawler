@@ -75,3 +75,27 @@ sources:
       - "can't afford"
       - "burned out"
       - "wish there was an app"
+  lemmy:
+    instance: https://lemmy.world
+    communities:
+      - offmychest
+      - mentalhealth
+      - depression
+      - asklemmy
+  appstore:
+    country: us
+    apps:
+      - { id: "284882215", name: facebook }
+      - { id: "324684580", name: spotify }
+      - { id: "389801252", name: instagram }
+      - { id: "973166471", name: shopee }
+      - { id: "694846659", name: grab }
+  playstore:
+    country: us
+    apps:
+      - com.facebook.katana
+      - com.spotify.music
+      - com.instagram.android
+      - com.shopee.vn
+      - vn.grabapp.driver
+      - com.zing.mp3

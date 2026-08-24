@@ -1,4 +1,4 @@
-const PLATFORM_LABEL = { reddit: "Reddit", hn: "Hacker News", so: "Stack Exchange", devto: "DEV.to", medium: "Medium", lb: "Lobsters", bsky: "Bluesky", gh: "GitHub" };
+const PLATFORM_LABEL = { reddit: "Reddit", hn: "Hacker News", so: "Stack Exchange", devto: "DEV.to", medium: "Medium", lb: "Lobsters", bsky: "Bluesky", lm: "Lemmy", asr: "App Store", gpr: "Google Play", fb: "Facebook", gh: "GitHub" };
 
 // Claude palette
 const C = {
@@ -98,7 +98,7 @@ function renderOverview(posts) {
   posts.forEach(p => { bySrc[p.platform] = (bySrc[p.platform] || 0) + 1; });
   drawChart("chartSource", "doughnut", {
     labels: Object.keys(bySrc).map(k => PLATFORM_LABEL[k] || k),
-    datasets: [{ data: Object.values(bySrc), backgroundColor: [C.coral, C.amber, C.teal, C.mutedSoft, C.ink, "#b8a06a", "#d98f6c", "#7fa8b8"], borderColor: "#faf9f5", borderWidth: 2 }]
+    datasets: [{ data: Object.values(bySrc), backgroundColor: [C.coral, C.amber, C.teal, C.mutedSoft, C.ink, "#b8a06a", "#d98f6c", "#7fa8b8", "#9aa87c", "#c58fb0", "#88a2c2", "#5e5e5e"], borderColor: "#faf9f5", borderWidth: 2 }]
   });
 
   const painBySrc = {};

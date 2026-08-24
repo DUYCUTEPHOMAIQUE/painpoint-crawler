@@ -164,6 +164,10 @@ td a:hover { color: var(--primary); text-decoration: underline; }
 .tag.medium { background: #ffe4d1; color: #96501e; }
 .tag.lb { background: #efe3f5; color: #6b4681; }
 .tag.bsky { background: #dbe9f5; color: #2e5e81; }
+.tag.lm { background: #e3efe1; color: #4a7347; }
+.tag.asr { background: #e0ecfa; color: #2b5c94; }
+.tag.gpr { background: #fbe3dc; color: #a04a2a; }
+.tag.fb { background: #dfe6f5; color: #33477e; }
 
 .stars { font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
 .gain { color: #2e7466; font-weight: 500; }
