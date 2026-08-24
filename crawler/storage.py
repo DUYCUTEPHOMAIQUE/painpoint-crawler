@@ -142,7 +142,8 @@ def save_star_snapshots(repos):
                  on_conflict="full_name,captured_at")
         _sb_push("repo_meta",
                  [{"full_name": r["full_name"], "description": r.get("description"),
-                   "language": r.get("language"), "url": r.get("url")}
+                   "language": r.get("language"), "url": r.get("url"),
+                   "stars": r.get("stars", 0), "stars_per_day": r.get("stars_per_day", 0)}
                   for r in repos])
     except Exception as e:
         import sys

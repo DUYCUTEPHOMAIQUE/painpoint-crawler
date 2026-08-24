@@ -49,15 +49,19 @@ async function fetchTrending() {
     const mResp = await fetch(`${SUPABASE_URL}/rest/v1/repo_meta?select=*`, { headers: { apikey: SUPABASE_ANON_KEY } });
     if (mResp.ok) (await mResp.json()).forEach(m => meta[m.full_name] = m);
   } catch (_) {}
-  return Object.entries(byRepo).map(([name, snaps]) => ({
-    full_name: name,
-    stars: snaps[snaps.length - 1].stars,
-    gain: snaps.length > 1 ? snaps[snaps.length - 1].stars - snaps[0].stars : 0,
-    snapshots: snaps.length,
-    description: (meta[name] || {}).description || "",
-    language: (meta[name] || {}).language || "",
-    url: `https://github.com/${name}`,
-  })).sort((a, b) => b.stars - a.stars).slice(0, 30);
+  return Object.entries(byRepo).map(([name, snaps]) => {
+    const m = meta[name] || {};
+    return {
+      full_name: name,
+      stars: m.stars || snaps[snaps.length - 1].stars,
+      perDay: m.stars_per_day || 0,
+      gain: snaps.length > 1 ? snaps[snaps.length - 1].stars - snaps[0].stars : 0,
+      snapshots: snaps.length,
+      description: m.description || "",
+      language: m.language || "",
+      url: m.url || `https://github.com/${name}`,
+    };
+  }).sort((a, b) => b.stars - a.stars).slice(0, 30);
 }
 
 function kpi(label, value, cls) {
@@ -113,9 +117,42 @@ function renderOverview(posts) {
   }, { y: { beginAtZero: true }, x: { ticks: { maxRotation: 60 } } });
 }
 
+/* ── Phân trang ─────────────────────────── */
+const PAGER_STATE = { pain: 1, trend: 1, runs: 1 };
+const PAGE_SIZE = { pain: 25, trend: 15, runs: 10 };
+
+function renderPager(elId, key, totalItems, onPage) {
+  const el = document.getElementById(elId);
+  const pages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE[key]));
+  if (PAGER_STATE[key] > pages) PAGER_STATE[key] = pages;
+  const cur = PAGER_STATE[key];
+  if (pages <= 1) { el.innerHTML = ""; return; }
+  let btns = "";
+  for (let p = 1; p <= pages; p++) {
+    btns += `<button class="pg ${p === cur ? "active" : ""}" data-p="${p}">${p}</button>`;
+  }
+  el.innerHTML =
+    `<button class="pg nav" data-p="${Math.max(1, cur - 1)}" ${cur === 1 ? "disabled" : ""}>‹</button>` +
+    btns +
+    `<button class="pg nav" data-p="${Math.min(pages, cur + 1)}" ${cur === pages ? "disabled" : ""}>›</button>` +
+    `<span class="pg-info">${totalItems} mục · trang ${cur}/${pages}</span>`;
+  el.querySelectorAll(".pg").forEach(b =>
+    b.addEventListener("click", () => {
+      PAGER_STATE[key] = parseInt(b.dataset.p, 10);
+      onPage();
+    }));
+}
+
+function slicePage(arr, key) {
+  const start = (PAGER_STATE[key] - 1) * PAGE_SIZE[key];
+  return arr.slice(start, start + PAGE_SIZE[key]);
+}
+
 function renderPain(posts) {
-  const top = [...posts].sort((a, b) => b.pain_score - a.pain_score).slice(0, 40);
-  document.querySelector("#topTable tbody").innerHTML = top.map((p, i) => `
+  const top = [...posts].sort((a, b) => b.pain_score - a.pain_score);
+  window.__painRows = top;
+  const rows = slicePage(top, "pain");
+  document.querySelector("#topTable tbody").innerHTML = rows.map((p, i) => `
     <tr>
       <td class="pain">${p.pain_score}</td>
       <td><span class="tag ${p.platform}">${PLATFORM_LABEL[p.platform] || p.platform}</span></td>
@@ -124,10 +161,9 @@ function renderPain(posts) {
       <td class="mut">${esc(((p.selftext || "").replace(/\s+/g, " ").trim()).slice(0, 110))}${p.selftext && p.selftext.length > 110 ? "…" : ""}</td>
       <td>${p.score}</td>
       <td>${p.num_comments}</td>
-      <td><button class="copy-btn" data-idx="${i}" title="Copy chi tiết pain point">Copy</button></td>
+      <td><button class="copy-btn" data-idx="${(PAGER_STATE.pain - 1) * PAGE_SIZE.pain + i}" title="Copy chi tiết pain point">Copy</button></td>
     </tr>`).join("") || '<tr><td colspan="8" class="mut">Chưa có dữ liệu</td></tr>';
-
-  window.__painRows = top;
+  renderPager("pagerTop", "pain", top.length, () => renderPain(posts));
 }
 
 async function copyPain(idx, btn) {
@@ -164,15 +200,37 @@ async function copyPain(idx, btn) {
 }
 
 function renderTrending(trending) {
-  document.querySelector("#trendTable tbody").innerHTML = trending.length ? trending.map(r => `
+  window.__trendRows = trending;
+  const rows = slicePage(trending, "trend");
+  document.querySelector("#trendTable tbody").innerHTML = rows.length ? rows.map((r, i) => `
     <tr>
       <td class="stars">⭐ ${r.stars}</td>
+      <td>${r.perDay ? `<span class="perday">+${r.perDay}/ngày</span>` : '<span class="mut">—</span>'}</td>
       <td>${r.gain !== 0 ? `<span class="gain">+${r.gain}</span>` : `<span class="mut">${r.snapshots} lần đo</span>`}</td>
       <td><a href="${r.url}" target="_blank" rel="noopener">${esc(r.full_name)}</a></td>
       <td>${r.language ? `<span class="lang-chip">${esc(r.language)}</span>` : '<span class="mut">—</span>'}</td>
-      <td class="mut">${esc((r.description || "").slice(0, 95))}</td>
+      <td class="mut">${esc((r.description || "").slice(0, 90))}</td>
+      <td><button class="copy-btn" data-idx="${(PAGER_STATE.trend - 1) * PAGE_SIZE.trend + i}" title="Copy link repo">Link</button></td>
     </tr>`).join("") :
-    '<tr><td colspan="5" class="mut">Chưa có dữ liệu trending — bot sẽ ghi sau mỗi lần chạy.</td></tr>';
+    '<tr><td colspan="7" class="mut">Chưa có dữ liệu trending — bot sẽ ghi sau mỗi lần chạy.</td></tr>';
+  renderPager("pagerTrend", "trend", trending.length, () => renderTrending(trending));
+}
+
+async function copyText(text, btn, okLabel = "✓ Đã copy") {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (_) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  const old = btn.textContent;
+  btn.textContent = okLabel;
+  btn.classList.add("copied");
+  setTimeout(() => { btn.textContent = old; btn.classList.remove("copied"); }, 1600);
 }
 
 function renderRuns(posts) {
@@ -183,12 +241,15 @@ function renderRuns(posts) {
     datasets: [{ label: "Posts mỗi lần chạy", data: runKeys.map(k => byRun[k]), backgroundColor: C.teal, borderRadius: 6 }]
   }, { y: { beginAtZero: true }, x: { ticks: { maxRotation: 60 } } });
 
-  document.querySelector("#runsTable tbody").innerHTML = runKeys.reverse().map(k => {
+  const list = runKeys.reverse().map(k => {
     const items = posts.filter(p => runKey(Math.floor(p.collected_at / 3600) * 3600) === k);
     const platforms = [...new Set(items.map(p => p.platform))].map(x => PLATFORM_LABEL[x] || x).join(", ");
     const avg = items.length ? (items.reduce((s, p) => s + p.pain_score, 0) / items.length).toFixed(2) : 0;
     return `<tr><td>${k}</td><td>${platforms}</td><td>${items.length}</td><td class="pain">${avg}</td></tr>`;
-  }).join("") || '<tr><td colspan="4" class="mut">Chưa có dữ liệu</td></tr>';
+  });
+  document.querySelector("#runsTable tbody").innerHTML =
+    slicePage(list, "runs").join("") || '<tr><td colspan="4" class="mut">Chưa có dữ liệu</td></tr>';
+  renderPager("pagerRuns", "runs", list.length, () => renderRuns(posts));
 }
 
 function runBuckets(posts) {
@@ -227,6 +288,13 @@ document.getElementById("tabs").addEventListener("click", e => {
 document.querySelector("#topTable").addEventListener("click", e => {
   const btn = e.target.closest(".copy-btn");
   if (btn) copyPain(parseInt(btn.dataset.idx, 10), btn);
+});
+
+document.querySelector("#trendTable").addEventListener("click", e => {
+  const btn = e.target.closest(".copy-btn");
+  if (!btn) return;
+  const r = (window.__trendRows || [])[parseInt(btn.dataset.idx, 10)];
+  if (r) copyText(r.url, btn, "✓ Đã copy link");
 });
 
 /* ── Charts ─────────────────────────────── */

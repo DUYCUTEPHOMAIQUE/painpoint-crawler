@@ -47,8 +47,13 @@ create table if not exists repo_meta (
     full_name text primary key,
     description text,
     language text,
-    url text
+    url text,
+    stars integer default 0,
+    stars_per_day double precision default 0
 );
+
+alter table repo_meta add column if not exists stars integer default 0;
+alter table repo_meta add column if not exists stars_per_day double precision default 0;
 
 alter table repo_meta enable row level security;
 
