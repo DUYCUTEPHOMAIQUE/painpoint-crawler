@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import time
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -98,6 +99,42 @@ Hãy viết BÁO CÁO DIGEST tiếng Việt dạng markdown gồm:
 
 Chỉ xuất markdown bắt đầu từ '# ', không lời dẫn."""
     return llm(prompt)
+
+
+def format_telegram_digest(themes, by_platform):
+    """Bien themes thanh tin nhan Telegram gon, dep (HTML)."""
+    import html as _h
+
+    def esc(s):
+        return _h.escape(str(s or ""), quote=False)
+
+    def short(s, n):
+        s = re.sub(r"\s+", " ", s or "").strip()
+        return s[:n] + ("…" if len(s) > n else "")
+
+    today = time.strftime("%d/%m")
+    plat = " · ".join(f"{k} {v}" for k, v in
+                      sorted(by_platform.items(), key=lambda x: -x[1])[:4])
+    header = f"🧠 <b>Pain Digest {today}</b>\n📊 {esc(plat)}\n"
+    msgs = [header]
+    cur = header
+    for i, t in enumerate(themes, 1):
+        sev = "🔥" * min(int(t.get("severity") or 1), 5)
+        ev = (t.get("evidence") or [])
+        link = f'\n🔗 <a href="{ev[0].get("url", "")}">xem bài gốc</a>' if ev and ev[0].get("url") else ""
+        block = (
+            f"\n<b>{i}. {short(t.get('theme'), 60)}</b> {sev}\n"
+            f"{short(t.get('summary_vi'), 130)}\n"
+            f"👤 {short(t.get('audience'), 60)}\n"
+            f"💡 {short(t.get('opportunity'), 90)}{link}\n"
+        )
+        if len(cur) + len(block) > 3800:
+            msgs.append(cur)
+            cur = ""
+        cur += block
+    if cur.strip():
+        msgs.append(cur)
+    return msgs
 
 
 def build_digest(posts):

@@ -1,0 +1,55 @@
+name: Telegram bot
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: telegram-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Setup opencode CLI cho /digest
+        if: env.OPENCODE_GO_KEY != ''
+        env:
+          OPENCODE_GO_KEY: ${{ secrets.OPENCODE_GO_KEY }}
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          mkdir -p ~/.local/share/opencode
+          printf '{"opencode-go": {"type": "api", "key": "%s"}}' "$OPENCODE_GO_KEY" > ~/.local/share/opencode/auth.json
+          echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+
+      - name: Xu ly lenh Telegram
+        run: python scripts/telegram_bot.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL || 'opencode-go/hy3' }}
+
+      - name: Luu offset
+        run: |
+          git config user.name "painpoint-bot"
+          git config user.email "actions@github.com"
+          git add -f data/tg_offset.txt || true
+          git commit -m "[bot] offset" || echo "Khong thay doi"
+          git pull --rebase -q origin main || true
+          git push

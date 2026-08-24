@@ -734,6 +734,9 @@ def cmd_digest(args):
         return
     console.print(f"[bold]LLM Digest:[/bold] phân tích {len(posts)} posts ({days} ngày qua)...")
     md, themes = llm_engine.build_digest(posts)
+    by_platform = {}
+    for p in posts:
+        by_platform[p["platform"]] = by_platform.get(p["platform"], 0) + 1
     if not md:
         console.print("[red]LLM không trả về chủ đề nào. Thử lại hoặc tăng --limit.[/red]")
         return
@@ -752,11 +755,15 @@ def cmd_digest(args):
             console.print("[yellow]Chưa có TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID -> bỏ qua gửi.[/yellow]")
             return
         import requests as _rq
-        plain = re.sub(r"[#*`>\[]", "", md)[:12000]
-        for i in range(0, len(plain), 3900):
+        msgs = llm_engine.format_telegram_digest(themes, by_platform)
+        sent = 0
+        for msg in msgs:
             _rq.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                     json={"chat_id": chat_id, "text": plain[i:i + 3900]}, timeout=30)
-        console.print(f"[green]Đã gửi {len(plain)//3900 + 1} tin nhắn Telegram.[/green]")
+                     json={"chat_id": chat_id, "text": msg,
+                           "parse_mode": "HTML", "disable_web_page_preview": True},
+                     timeout=30)
+            sent += 1
+        console.print(f"[green]Đã gửi {sent} tin nhắn Telegram.[/green]")
 
 
 def main():
