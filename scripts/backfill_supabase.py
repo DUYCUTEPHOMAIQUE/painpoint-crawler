@@ -5,7 +5,10 @@ Cần env: SUPABASE_URL, SUPABASE_SERVICE_KEY
 import os
 import sys
 
+from dotenv import load_dotenv
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv()
 
 from crawler import storage
 
