@@ -1,4 +1,4 @@
-const PLATFORM_LABEL = { reddit: "Reddit", hn: "Hacker News", so: "StackOverflow", gh: "GitHub" };
+const PLATFORM_LABEL = { reddit: "Reddit", hn: "Hacker News", so: "StackOverflow", dv: "DEV.to", medium: "Medium", gh: "GitHub" };
 
 // Claude palette
 const C = {
@@ -98,7 +98,7 @@ function renderOverview(posts) {
   posts.forEach(p => { bySrc[p.platform] = (bySrc[p.platform] || 0) + 1; });
   drawChart("chartSource", "doughnut", {
     labels: Object.keys(bySrc).map(k => PLATFORM_LABEL[k] || k),
-    datasets: [{ data: Object.values(bySrc), backgroundColor: [C.coral, C.amber, C.teal, C.mutedSoft], borderColor: "#faf9f5", borderWidth: 2 }]
+    datasets: [{ data: Object.values(bySrc), backgroundColor: [C.coral, C.amber, C.teal, "#8e8b82", "#b8a06a", C.ink], borderColor: "#faf9f5", borderWidth: 2 }]
   });
 
   const painBySrc = {};
@@ -117,9 +117,22 @@ function renderOverview(posts) {
   }, { y: { beginAtZero: true }, x: { ticks: { maxRotation: 60 } } });
 }
 
-/* ── Phân trang ─────────────────────────── */
+/* ── Phân trang chuyên nghiệp: 1 … 4 [5] 6 … 12 ── */
 const PAGER_STATE = { pain: 1, trend: 1, runs: 1 };
 const PAGE_SIZE = { pain: 25, trend: 15, runs: 10 };
+
+function pagerRange(cur, pages) {
+  const delta = 1;
+  const range = [];
+  for (let i = 1; i <= pages; i++) {
+    if (i === 1 || i === pages || (i >= cur - delta && i <= cur + delta)) {
+      range.push(i);
+    } else if (range[range.length - 1] !== "…") {
+      range.push("…");
+    }
+  }
+  return range;
+}
 
 function renderPager(elId, key, totalItems, onPage) {
   const el = document.getElementById(elId);
@@ -127,16 +140,20 @@ function renderPager(elId, key, totalItems, onPage) {
   if (PAGER_STATE[key] > pages) PAGER_STATE[key] = pages;
   const cur = PAGER_STATE[key];
   if (pages <= 1) { el.innerHTML = ""; return; }
+
   let btns = "";
-  for (let p = 1; p <= pages; p++) {
-    btns += `<button class="pg ${p === cur ? "active" : ""}" data-p="${p}">${p}</button>`;
+  btns += `<button class="pg nav" data-p="1" ${cur === 1 ? "disabled" : ""} title="Trang đầu">«</button>`;
+  btns += `<button class="pg nav" data-p="${Math.max(1, cur - 1)}" ${cur === 1 ? "disabled" : ""} title="Trước">‹</button>`;
+  for (const item of pagerRange(cur, pages)) {
+    btns += item === "…"
+      ? `<span class="pg dots">…</span>`
+      : `<button class="pg ${item === cur ? "active" : ""}" data-p="${item}">${item}</button>`;
   }
-  el.innerHTML =
-    `<button class="pg nav" data-p="${Math.max(1, cur - 1)}" ${cur === 1 ? "disabled" : ""}>‹</button>` +
-    btns +
-    `<button class="pg nav" data-p="${Math.min(pages, cur + 1)}" ${cur === pages ? "disabled" : ""}>›</button>` +
-    `<span class="pg-info">${totalItems} mục · trang ${cur}/${pages}</span>`;
-  el.querySelectorAll(".pg").forEach(b =>
+  btns += `<button class="pg nav" data-p="${Math.min(pages, cur + 1)}" ${cur === pages ? "disabled" : ""} title="Sau">›</button>`;
+  btns += `<button class="pg nav" data-p="${pages}" ${cur === pages ? "disabled" : ""} title="Trang cuối">»</button>`;
+
+  el.innerHTML = btns + `<span class="pg-info">${totalItems.toLocaleString("vi-VN")} mục · ${cur}/${pages}</span>`;
+  el.querySelectorAll("button.pg").forEach(b =>
     b.addEventListener("click", () => {
       PAGER_STATE[key] = parseInt(b.dataset.p, 10);
       onPage();

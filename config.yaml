@@ -49,3 +49,16 @@ sources:
       - docker
       - aws
       - devops
+  devto:
+    tags:
+      - career
+      - mentalhealth
+      - beginners
+      - productivity
+      - programming
+  medium:
+    tags:
+      - mental-health
+      - self-improvement
+      - entrepreneurship
+      - career-advice

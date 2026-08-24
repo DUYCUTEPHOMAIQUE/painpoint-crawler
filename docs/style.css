@@ -160,6 +160,8 @@ td a:hover { color: var(--primary); text-decoration: underline; }
 .tag.reddit { background: var(--primary-soft); color: #8f4530; }
 .tag.hn { background: #fbead0; color: #96601b; }
 .tag.so { background: #ddeee8; color: #2e7466; }
+.tag.devto { background: #e6e3f5; color: #4f4380; }
+.tag.medium { background: #ffe4d1; color: #96501e; }
 
 .stars { font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
 .gain { color: #2e7466; font-weight: 500; }
@@ -211,7 +213,9 @@ td a:hover { color: var(--primary); text-decoration: underline; }
 .pg:hover:not(:disabled):not(.active) { border-color: var(--primary); color: var(--primary); }
 .pg.active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .pg:disabled { opacity: .4; cursor: default; }
-.pg-info { font-size: 12.5px; color: var(--muted); margin-left: 8px; }
+.pg.dots { border: none; background: transparent; color: var(--muted); cursor: default; padding: 5px 4px; }
+.pg.nav { font-weight: 600; }
+.pg-info { font-size: 12.5px; color: var(--muted); margin-left: 10px; }
 
 #status { padding: 40px; text-align: center; color: var(--muted); font-size: 17px; }
 
