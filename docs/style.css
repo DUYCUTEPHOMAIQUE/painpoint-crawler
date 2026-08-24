@@ -162,6 +162,8 @@ td a:hover { color: var(--primary); text-decoration: underline; }
 .tag.so { background: #ddeee8; color: #2e7466; }
 .tag.devto { background: #e6e3f5; color: #4f4380; }
 .tag.medium { background: #ffe4d1; color: #96501e; }
+.tag.lb { background: #efe3f5; color: #6b4681; }
+.tag.bsky { background: #dbe9f5; color: #2e5e81; }
 
 .stars { font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
 .gain { color: #2e7466; font-weight: 500; }

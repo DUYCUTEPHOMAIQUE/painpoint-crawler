@@ -62,3 +62,16 @@ sources:
       - self-improvement
       - entrepreneurship
       - career-advice
+  stackexchange_sites:
+    - workplace
+    - money
+    - parenting
+    - psychology
+    - academia
+  bluesky:
+    queries:
+      - "i'm struggling with"
+      - "so frustrated"
+      - "can't afford"
+      - "burned out"
+      - "wish there was an app"

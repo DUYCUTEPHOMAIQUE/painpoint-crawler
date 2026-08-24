@@ -18,8 +18,8 @@ TIME_DELTAS = {
 }
 
 
-def _get(path, params):
-    params = dict(params, site=SITE)
+def _get(path, params, site=SITE):
+    params = dict(params, site=site)
     resp = requests.get(f"{BASE_URL}{path}", params=params, timeout=30,
                         headers={"User-Agent": "painpoint-crawler/0.1"})
     resp.raise_for_status()
@@ -33,12 +33,13 @@ def _clean(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _record(q, query=None, comments=None):
+def _record(q, query=None, comments=None, site=SITE):
     title = htmllib.unescape(q.get("title") or "")
     body = _clean(q.get("body"))
     ups = q.get("score") or 0
     n_answers = q.get("answer_count") or 0
     tags = ",".join((q.get("tags") or [])[:3])
+    community = f"{site}/{tags}" if site != SITE else (tags or SITE)
     pain, matched = painpoints.analyze_text(f"{title}\n{body}")
     if comments:
         c_pain, c_matched = painpoints.analyze_text("\n".join(comments))
@@ -47,7 +48,7 @@ def _record(q, query=None, comments=None):
     return {
         "id": f"so_{q.get('question_id')}",
         "platform": PLATFORM,
-        "subreddit": tags or SITE,
+        "subreddit": community,
         "title": title,
         "selftext": body[:5000],
         "author": (q.get("owner") or {}).get("display_name") or "[deleted]",
@@ -65,50 +66,50 @@ def _record(q, query=None, comments=None):
 
 
 def discover(tag=None, limit=100, time_filter="month", sort="votes",
-             with_comments=False, comments_limit=5):
+             with_comments=False, comments_limit=5, site=SITE):
     params = {"order": "desc", "sort": sort, "pagesize": min(limit, 100)}
     if tag:
         params["tagged"] = tag
     if time_filter in TIME_DELTAS:
         params["fromdate"] = int(time.time() - TIME_DELTAS[time_filter])
-    questions = _get("/questions", params)
+    questions = _get("/questions", params, site=site)
     return _collect(questions, query=None, with_comments=with_comments,
-                    comments_limit=comments_limit)
+                    comments_limit=comments_limit, site=site)
 
 
 def search(query, limit=100, time_filter="week", tag=None,
-           with_comments=False, comments_limit=5):
+           with_comments=False, comments_limit=5, site=SITE):
     params = {"q": query, "order": "desc", "sort": "relevance",
               "pagesize": min(limit, 100)}
     if tag:
         params["tagged"] = tag
     if time_filter in TIME_DELTAS:
         params["fromdate"] = int(time.time() - TIME_DELTAS[time_filter])
-    questions = _get("/search/advanced", params)
+    questions = _get("/search/advanced", params, site=site)
     return _collect(questions, query=query, with_comments=with_comments,
-                    comments_limit=comments_limit)
+                    comments_limit=comments_limit, site=site)
 
 
-def _collect(questions, query, with_comments, comments_limit):
+def _collect(questions, query, with_comments, comments_limit, site=SITE):
     answer_budget = 5
     posts = []
     for q in questions:
         comments = None
         if with_comments and answer_budget > 0:
-            comments = fetch_answers(q.get("question_id"), comments_limit)
+            comments = fetch_answers(q.get("question_id"), comments_limit, site=site)
             answer_budget -= 1
             time.sleep(0.2)
-        posts.append(_record(q, query=query, comments=comments))
+        posts.append(_record(q, query=query, comments=comments, site=site))
     return posts
 
 
-def fetch_answers(question_id, limit=5):
+def fetch_answers(question_id, limit=5, site=SITE):
     if not question_id:
         return []
     try:
         items = _get(f"/questions/{question_id}/answers",
                      {"order": "desc", "sort": "votes",
-                      "pagesize": min(limit, 100), "filter": "withbody"})
+                      "pagesize": min(limit, 100), "filter": "withbody"}, site=site)
     except Exception:
         return []
     return [_clean(i.get("body"))[:1000] for i in items if i.get("body")]

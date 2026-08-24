@@ -6,12 +6,12 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
-from crawler import arctic, crawler, devto, github, hackernews, mediumfeed, stackexchange, storage
+from crawler import arctic, bluesky, crawler, devto, github, hackernews, lobsters, mediumfeed, stackexchange, storage
 from crawler.client import get_reddit, has_credentials
 
 console = Console()
 
-KNOWN_SOURCES = {"auto", "reddit", "arctic", "hn", "so", "gh", "dv", "md"}
+KNOWN_SOURCES = {"auto", "reddit", "arctic", "hn", "so", "gh", "dv", "md", "lb", "bs"}
 
 
 def resolve_sources(args):
@@ -168,6 +168,28 @@ def cmd_discover(args):
                 saved = storage.save_posts(posts)
                 all_posts.extend(posts)
                 console.print(f"  -> {len(posts)} posts lấy về, {saved} lưu DB")
+        elif src == "lb":
+            console.print("[yellow]Đang quét Lobsters...[/yellow]")
+            try:
+                posts = lobsters.discover(limit=args.limit, time_filter=time_filter)
+            except Exception as e:
+                console.print(f"[red]Lỗi Lobsters: {e}[/red]")
+                posts = []
+            saved = storage.save_posts(posts)
+            all_posts.extend(posts)
+            console.print(f"  -> {len(posts)} posts lấy về, {saved} lưu DB")
+        elif src == "bs":
+            for q in scfg.get("bluesky", {}).get("queries", []):
+                console.print(f'[yellow]Đang quét Bluesky: "{q}"...[/yellow]')
+                try:
+                    posts = bluesky.discover(query=q, limit=args.limit,
+                                             time_filter=time_filter)
+                except Exception as e:
+                    console.print(f"[red]Lỗi Bluesky '{q}': {e}[/red]")
+                    continue
+                saved = storage.save_posts(posts)
+                all_posts.extend(posts)
+                console.print(f"  -> {len(posts)} posts lấy về, {saved} lưu DB")
         elif src == "gh":
             queries = scfg.get("github", {}).get("queries", [])
             for q in queries:
@@ -293,7 +315,19 @@ def cmd_search(args):
                     seen.update(p["id"] for p in posts)
                     all_posts.extend(posts)
                     console.print(f"  -> {len(posts)} kết quả")
-        elif src in ("dv", "md"):
+        elif src == "bs":
+            for q in queries:
+                console.print(f'[yellow]Đang tìm Bluesky: "{q}"...[/yellow]')
+                try:
+                    posts = bluesky.search(q, limit=args.limit, time_filter=time_filter)
+                except Exception as e:
+                    console.print(f"[red]Lỗi Bluesky '{q}': {e}[/red]")
+                    continue
+                posts = [p for p in posts if p["id"] not in seen]
+                seen.update(p["id"] for p in posts)
+                all_posts.extend(posts)
+                console.print(f"  -> {len(posts)} kết quả")
+        elif src in ("dv", "md", "lb"):
             console.print(f"[dim]Nguồn {src} chỉ hỗ trợ discover theo tag (không có API tìm kiếm) — bỏ qua trong lệnh search.[/dim]")
         elif src == "gh":
             for q in queries:
@@ -332,7 +366,7 @@ def cmd_daily(args):
     gh_queries = scfg.get("github", {}).get("queries", [])
     raw_sources = getattr(args, "sources", None)
     if raw_sources in (None, "auto"):
-        sources = ["auto", "hn", "so", "dv", "md"]
+        sources = ["auto", "hn", "so", "dv", "md", "lb", "bs"]
     else:
         sources = [s.strip() for s in raw_sources.split(",") if s.strip()]
         unknown = [s for s in sources if s not in KNOWN_SOURCES]
@@ -380,6 +414,7 @@ def cmd_daily(args):
                 posts = []
             collect(posts, "hn")
         elif actual == "so":
+            se_sites = scfg.get("stackexchange_sites", [])
             for tag in so_tags:
                 console.print(f"[yellow][daily] StackOverflow #{tag} (mới nhất, {window})...[/yellow]")
                 try:
@@ -391,6 +426,16 @@ def cmd_daily(args):
                     console.print(f"[red]Lỗi tag {tag}: {e}[/red]")
                     continue
                 collect(posts, f"so/#{tag}")
+            for site in se_sites:
+                console.print(f"[yellow][daily] Stack Exchange site '{site}' (mới nhất, {window})...[/yellow]")
+                try:
+                    posts = stackexchange.discover(site=site, limit=args.limit,
+                                                   time_filter=window, sort="creation",
+                                                   with_comments=False)
+                except Exception as e:
+                    console.print(f"[red]Lỗi site {site}: {e}[/red]")
+                    continue
+                collect(posts, f"se/{site}")
         elif actual == "dv":
             for tag in scfg.get("devto", {}).get("tags", []):
                 console.print(f"[yellow][daily] DEV.to #{tag} (mới nhất, {window})...[/yellow]")
@@ -413,6 +458,24 @@ def cmd_daily(args):
                     console.print(f"[red]Lỗi tag {tag}: {e}[/red]")
                     continue
                 collect(posts, f"md/#{tag}")
+        elif actual == "lb":
+            console.print(f"[yellow][daily] Lobsters ({window})...[/yellow]")
+            try:
+                posts = lobsters.discover(limit=args.limit, time_filter=window)
+            except Exception as e:
+                console.print(f"[red]Lỗi Lobsters: {e}[/red]")
+                posts = []
+            collect(posts, "lb")
+        elif actual == "bs":
+            for q in scfg.get("bluesky", {}).get("queries", []):
+                console.print(f'[yellow][daily] Bluesky "{q}"...[/yellow]')
+                try:
+                    posts = bluesky.discover(query=q, limit=args.limit,
+                                             time_filter=window)
+                except Exception as e:
+                    console.print(f"[red]Lỗi Bluesky '{q}': {e}[/red]")
+                    continue
+                collect(posts, f"bs:{q}")
         elif actual == "gh":
             for q in gh_queries:
                 console.print(f'[yellow][daily] GitHub "{q}" ({window})...[/yellow]')
