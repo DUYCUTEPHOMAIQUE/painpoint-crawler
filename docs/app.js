@@ -1,17 +1,20 @@
 const PLATFORM_LABEL = { reddit: "Reddit", hn: "Hacker News", so: "StackOverflow", gh: "GitHub" };
 
-// Uber palette — đen trắng xám, không màu nhấn
+// Claude palette
 const C = {
-  ink: "#000000",
-  hairline: "#4b4b4b",
-  body: "#5e5e5e",
-  mute: "#afafaf",
-  pressed: "#e2e2e2",
-  soft: "#efefef",
+  ink: "#141413",
+  body: "#3d3d3a",
+  muted: "#6c6a64",
+  mutedSoft: "#8e8b82",
+  hairline: "#e6dfd8",
+  coral: "#cc785c",
+  coralDark: "#a9583e",
+  teal: "#5db8a6",
+  amber: "#e8a55a",
 };
 
-Chart.defaults.font.family = '"Inter", system-ui, "Helvetica Neue", Arial, sans-serif';
-Chart.defaults.color = C.body;
+Chart.defaults.font.family = '"Inter", system-ui, -apple-system, sans-serif';
+Chart.defaults.color = C.muted;
 
 let charts = {};
 
@@ -29,8 +32,35 @@ async function fetchPosts() {
   return resp.json();
 }
 
-function kpi(label, value, color) {
-  return `<div class="kpi"><div class="v" style="color:${color || "var(--text)"}">${value}</div><div class="l">${label}</div></div>`;
+async function fetchTrending() {
+  // Lấy toàn bộ snapshot, gộp lấy mới nhất + tăng trưởng 7 ngày theo repo
+  const since = (Date.now() / 1000) - 7 * 86400;
+  const url = `${SUPABASE_URL}/rest/v1/repo_stars?select=full_name,stars,captured_at&captured_at=gte.${since}&order=captured_at.asc&limit=3000`;
+  const resp = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY } });
+  if (!resp.ok) return [];
+  const rows = await resp.json();
+  const byRepo = {};
+  rows.forEach(r => {
+    (byRepo[r.full_name] = byRepo[r.full_name] || []).push(r);
+  });
+  const meta = {};
+  try {
+    const mResp = await fetch(`${SUPABASE_URL}/rest/v1/repo_meta?select=*`, { headers: { apikey: SUPABASE_ANON_KEY } });
+    if (mResp.ok) (await mResp.json()).forEach(m => meta[m.full_name] = m);
+  } catch (_) {}
+  return Object.entries(byRepo).map(([name, snaps]) => ({
+    full_name: name,
+    stars: snaps[snaps.length - 1].stars,
+    gain: snaps.length > 1 ? snaps[snaps.length - 1].stars - snaps[0].stars : 0,
+    snapshots: snaps.length,
+    description: (meta[name] || {}).description || "",
+    language: (meta[name] || {}).language || "",
+    url: `https://github.com/${name}`,
+  })).sort((a, b) => b.stars - a.stars).slice(0, 20);
+}
+
+function kpi(label, value, cls) {
+  return `<div class="kpi"><div class="v ${cls || ""}">${value}</div><div class="l">${label}</div></div>`;
 }
 
 function dayKey(ts) { return new Date(ts * 1000).toISOString().slice(0, 10); }
@@ -39,7 +69,9 @@ function runKey(ts) {
   return d.toISOString().slice(5, 16).replace("T", " ") + "h";
 }
 
-function render(posts) {
+function esc(s) { return (s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function render(posts, trending) {
   const total = posts.length;
   const avgPain = total ? (posts.reduce((s, p) => s + p.pain_score, 0) / total).toFixed(2) : 0;
   const hot = posts.filter(p => p.pain_score >= 5).length;
@@ -47,10 +79,10 @@ function render(posts) {
   const todayCount = posts.filter(p => dayKey(p.collected_at) === today).length;
 
   document.getElementById("kpis").innerHTML =
-    kpi("Tổng posts", total.toLocaleString("vi-VN"), "var(--blue)") +
-    kpi("Mới hôm nay", todayCount, "var(--green)") +
-    kpi("Pain score TB", avgPain, "var(--accent)") +
-    kpi("Posts pain ≥ 5", hot, "var(--yellow)");
+    kpi("Tổng posts", total.toLocaleString("vi-VN")) +
+    kpi("Mới hôm nay", todayCount, "coral") +
+    kpi("Pain score TB", avgPain) +
+    kpi("Posts pain ≥ 5", hot);
 
   // theo ngày
   const byDay = {};
@@ -58,7 +90,7 @@ function render(posts) {
   const days = Object.keys(byDay).sort().slice(-60);
   drawChart("chartDaily", "line", {
     labels: days,
-    datasets: [{ label: "Posts/ngày", data: days.map(d => byDay[d]), borderColor: C.ink, backgroundColor: "rgba(0,0,0,0.06)", fill: true, tension: .3, pointRadius: 2 }]
+    datasets: [{ label: "Posts/ngày", data: days.map(d => byDay[d]), borderColor: C.coral, backgroundColor: "rgba(204,120,92,0.12)", fill: true, tension: .3, pointRadius: 2 }]
   });
 
   // theo nguồn
@@ -66,7 +98,7 @@ function render(posts) {
   posts.forEach(p => { bySrc[p.platform] = (bySrc[p.platform] || 0) + 1; });
   drawChart("chartSource", "doughnut", {
     labels: Object.keys(bySrc).map(k => PLATFORM_LABEL[k] || k),
-    datasets: [{ data: Object.values(bySrc), backgroundColor: [C.ink, C.hairline, C.mute, C.pressed], borderColor: "#fff", borderWidth: 2 }]
+    datasets: [{ data: Object.values(bySrc), backgroundColor: [C.coral, C.amber, C.teal, C.mutedSoft], borderColor: "#faf9f5", borderWidth: 2 }]
   });
 
   // pain TB theo nguồn
@@ -77,10 +109,10 @@ function render(posts) {
   const srcKeys = Object.keys(painBySrc);
   drawChart("chartPain", "bar", {
     labels: srcKeys.map(k => PLATFORM_LABEL[k] || k),
-    datasets: [{ label: "Pain TB", data: srcKeys.map(k => +(painBySrc[k].reduce((a, b) => a + b, 0) / painBySrc[k].length).toFixed(2)), backgroundColor: C.ink, borderRadius: 8 }]
+    datasets: [{ label: "Pain TB", data: srcKeys.map(k => +(painBySrc[k].reduce((a, b) => a + b, 0) / painBySrc[k].length).toFixed(2)), backgroundColor: C.ink, borderRadius: 6 }]
   }, { y: { beginAtZero: true } });
 
-  // các lần crawl (actions): group theo giờ
+  // các lần crawl
   const byRun = {};
   posts.forEach(p => {
     const k = runKey(Math.floor(p.collected_at / 3600) * 3600);
@@ -89,10 +121,10 @@ function render(posts) {
   const runKeys = Object.keys(byRun).sort().slice(-24);
   drawChart("chartRuns", "bar", {
     labels: runKeys,
-    datasets: [{ label: "Posts mỗi lần chạy", data: runKeys.map(k => byRun[k]), backgroundColor: C.body, borderRadius: 8 }]
+    datasets: [{ label: "Posts mỗi lần chạy", data: runKeys.map(k => byRun[k]), backgroundColor: C.teal, borderRadius: 6 }]
   }, { y: { beginAtZero: true }, x: { ticks: { maxRotation: 60 } } });
 
-  // bảng top pain
+  // top pain
   const top = [...posts].sort((a, b) => b.pain_score - a.pain_score).slice(0, 25);
   document.querySelector("#topTable tbody").innerHTML = top.map(p => `
     <tr>
@@ -104,7 +136,18 @@ function render(posts) {
       <td>${p.num_comments}</td>
     </tr>`).join("");
 
-  // bảng lần crawl gần nhất
+  // trending
+  document.querySelector("#trendTable tbody").innerHTML = trending.length ? trending.map(r => `
+    <tr>
+      <td class="stars">⭐ ${r.stars}</td>
+      <td>${r.gain > 0 ? `<span class="gain">+${r.gain}</span>` : `<span class="mut">${r.snapshots} lần đo</span>`}</td>
+      <td><a href="${r.url}" target="_blank" rel="noopener">${esc(r.full_name)}</a></td>
+      <td>${r.language ? `<span class="lang-chip">${esc(r.language)}</span>` : '<span class="mut">—</span>'}</td>
+      <td class="mut">${esc((r.description || "").slice(0, 90))}</td>
+    </tr>`).join("") :
+    '<tr><td colspan="5" class="mut">Chưa có dữ liệu trending — bot sẽ ghi sau mỗi lần chạy.</td></tr>';
+
+  // lần crawl gần nhất
   const runRows = runKeys.reverse().map(k => {
     const items = posts.filter(p => runKey(Math.floor(p.collected_at / 3600) * 3600) === k);
     const platforms = [...new Set(items.map(p => p.platform))].map(x => PLATFORM_LABEL[x] || x).join(", ");
@@ -116,7 +159,7 @@ function render(posts) {
 
 function drawChart(id, type, data, options = {}) {
   if (charts[id]) charts[id].destroy();
-  const grid = { color: C.soft };
+  const grid = { color: C.hairline };
   const baseScales = {
     x: Object.assign({ grid: Object.assign({}, grid) }, options.x || {}),
     y: Object.assign({ beginAtZero: true, grid: Object.assign({}, grid) }, options.y || {}),
@@ -132,13 +175,11 @@ function drawChart(id, type, data, options = {}) {
   });
 }
 
-function esc(s) { return (s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
-
 async function load() {
   document.getElementById("kpis").innerHTML = '<div id="status">Đang tải dữ liệu…</div>';
   try {
-    const posts = await fetchPosts();
-    render(posts);
+    const [posts, trending] = await Promise.all([fetchPosts(), fetchTrending()]);
+    render(posts, trending);
   } catch (e) {
     document.getElementById("kpis").innerHTML =
       `<div id="status">⚠️ Không tải được dữ liệu: ${e.message}<br>Kiểm tra config.js (SUPABASE_URL / ANON_KEY)</div>`;

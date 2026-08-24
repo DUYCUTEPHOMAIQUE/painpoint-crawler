@@ -115,6 +115,17 @@ def save_posts(posts):
     return saved
 
 
+def _sb_push(table, rows, on_conflict="full_name"):
+    if not (SUPABASE_URL and SUPABASE_KEY and rows):
+        return 0
+    headers = _sb_headers()
+    headers["Prefer"] = f"resolution=merge-duplicates,on_conflict={on_conflict},return=minimal"
+    resp = requests.post(f"{SUPABASE_URL}/rest/v1/{table}", headers=headers, json=rows, timeout=60)
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(f"Supabase {table} lỗi {resp.status_code}: {resp.text[:300]}")
+    return len(rows)
+
+
 def save_star_snapshots(repos):
     if not repos:
         return 0
@@ -124,6 +135,18 @@ def save_star_snapshots(repos):
             "INSERT OR REPLACE INTO repo_stars (full_name, stars, captured_at) VALUES (?,?,?)",
             [(r["full_name"], r["stars"], now) for r in repos],
         )
+    try:
+        _sb_push("repo_stars",
+                 [{"full_name": r["full_name"], "stars": r["stars"], "captured_at": now}
+                  for r in repos],
+                 on_conflict="full_name,captured_at")
+        _sb_push("repo_meta",
+                 [{"full_name": r["full_name"], "description": r.get("description"),
+                   "language": r.get("language"), "url": r.get("url")}
+                  for r in repos])
+    except Exception as e:
+        import sys
+        print(f"[warn] Supabase repo sync lỗi: {e}", file=sys.stderr)
     return len(repos)
 
 

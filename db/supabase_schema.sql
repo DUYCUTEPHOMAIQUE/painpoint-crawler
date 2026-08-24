@@ -42,3 +42,16 @@ alter table repo_stars enable row level security;
 drop policy if exists "public read repo_stars" on repo_stars;
 create policy "public read repo_stars" on repo_stars
     for select to anon using (true);
+
+create table if not exists repo_meta (
+    full_name text primary key,
+    description text,
+    language text,
+    url text
+);
+
+alter table repo_meta enable row level security;
+
+drop policy if exists "public read repo_meta" on repo_meta;
+create policy "public read repo_meta" on repo_meta
+    for select to anon using (true);
