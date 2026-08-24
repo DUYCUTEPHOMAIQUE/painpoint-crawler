@@ -303,8 +303,15 @@ def cmd_daily(args):
         or dcfg.get("subreddits", [])
     so_tags = scfg.get("stackoverflow", {}).get("tags", [])
     gh_queries = scfg.get("github", {}).get("queries", [])
-    sources = resolve_sources(args) if getattr(args, "sources", None) not in (None, "auto") \
-        else ["auto"]
+    raw_sources = getattr(args, "sources", None)
+    if raw_sources in (None, "auto"):
+        sources = ["auto", "hn", "so", "gh"]
+    else:
+        sources = [s.strip() for s in raw_sources.split(",") if s.strip()]
+        unknown = [s for s in sources if s not in KNOWN_SOURCES]
+        if unknown:
+            raise SystemExit(f"Nguồn không hỗ trợ: {', '.join(unknown)}")
+        sources = resolve_sources(args)
 
     storage.init_db()
     all_new = []
@@ -489,7 +496,7 @@ def main():
     p_daily.add_argument("--subreddits", default=None,
                          help="Ghi đè danh sách subreddit (mặc định: config.yaml)")
     p_daily.add_argument("--sources", dest="sources", default="auto",
-                         help="Giới hạn nguồn: auto, reddit, arctic, hn, so, gh (mặc định: auto = tất cả)")
+                         help="Giới hạn nguồn (dấu phẩy): reddit, arctic, hn, so, gh. Mặc định: tất cả")
     p_daily.set_defaults(func=cmd_daily)
 
     p_e = sub.add_parser("export", help="Xuất dữ liệu đã lưu ra CSV/JSON")
