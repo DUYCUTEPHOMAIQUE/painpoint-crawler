@@ -17,15 +17,23 @@ let RENDERED = {};
 async function fetchPosts() {
   const platform = document.getElementById("f-platform").value;
   const days = parseInt(document.getElementById("f-days").value, 10);
-  let url = `${SUPABASE_URL}/rest/v1/posts?select=id,platform,subreddit,title,url,pain_score,num_comments,score,collected_at,created_utc,selftext,comments&order=collected_at.desc&limit=8000`;
-  if (platform) url += `&platform=eq.${platform}`;
-  if (days > 0) {
-    const since = (Date.now() / 1000) - days * 86400;
-    url += `&collected_at=gte.${since}`;
+  const since = days > 0 ? (Date.now() / 1000) - days * 86400 : null;
+
+  // PostgREST gioi han ~1000 dong/lan -> tai phan trang cho du
+  const PAGE = 1000;
+  const MAX = 9000;
+  let all = [];
+  for (let offset = 0; offset < MAX; offset += PAGE) {
+    let url = `${SUPABASE_URL}/rest/v1/posts?select=id,platform,subreddit,title,url,pain_score,num_comments,score,collected_at,created_utc,selftext,comments&order=collected_at.desc&limit=${PAGE}&offset=${offset}`;
+    if (platform) url += `&platform=eq.${platform}`;
+    if (since) url += `&collected_at=gte.${since}`;
+    const resp = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY } });
+    if (!resp.ok) throw new Error(`Supabase ${resp.status}`);
+    const rows = await resp.json();
+    all = all.concat(rows);
+    if (rows.length < PAGE) break;
   }
-  const resp = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY } });
-  if (!resp.ok) throw new Error(`Supabase ${resp.status}`);
-  return resp.json();
+  return all;
 }
 
 async function fetchTrending() {
