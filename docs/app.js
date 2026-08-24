@@ -1,5 +1,18 @@
 const PLATFORM_LABEL = { reddit: "Reddit", hn: "Hacker News", so: "StackOverflow", gh: "GitHub" };
 
+// Uber palette — đen trắng xám, không màu nhấn
+const C = {
+  ink: "#000000",
+  hairline: "#4b4b4b",
+  body: "#5e5e5e",
+  mute: "#afafaf",
+  pressed: "#e2e2e2",
+  soft: "#efefef",
+};
+
+Chart.defaults.font.family = '"Inter", system-ui, "Helvetica Neue", Arial, sans-serif';
+Chart.defaults.color = C.body;
+
 let charts = {};
 
 async function fetchPosts() {
@@ -45,7 +58,7 @@ function render(posts) {
   const days = Object.keys(byDay).sort().slice(-60);
   drawChart("chartDaily", "line", {
     labels: days,
-    datasets: [{ label: "Posts/ngày", data: days.map(d => byDay[d]), borderColor: "#4c8dff", backgroundColor: "#4c8dff33", fill: true, tension: .3 }]
+    datasets: [{ label: "Posts/ngày", data: days.map(d => byDay[d]), borderColor: C.ink, backgroundColor: "rgba(0,0,0,0.06)", fill: true, tension: .3, pointRadius: 2 }]
   });
 
   // theo nguồn
@@ -53,7 +66,7 @@ function render(posts) {
   posts.forEach(p => { bySrc[p.platform] = (bySrc[p.platform] || 0) + 1; });
   drawChart("chartSource", "doughnut", {
     labels: Object.keys(bySrc).map(k => PLATFORM_LABEL[k] || k),
-    datasets: [{ data: Object.values(bySrc), backgroundColor: ["#ff4500", "#ff6600", "#7c5cff", "#238636"] }]
+    datasets: [{ data: Object.values(bySrc), backgroundColor: [C.ink, C.hairline, C.mute, C.pressed], borderColor: "#fff", borderWidth: 2 }]
   });
 
   // pain TB theo nguồn
@@ -64,7 +77,7 @@ function render(posts) {
   const srcKeys = Object.keys(painBySrc);
   drawChart("chartPain", "bar", {
     labels: srcKeys.map(k => PLATFORM_LABEL[k] || k),
-    datasets: [{ label: "Pain TB", data: srcKeys.map(k => +(painBySrc[k].reduce((a, b) => a + b, 0) / painBySrc[k].length).toFixed(2)), backgroundColor: "#ff5a5f99" }]
+    datasets: [{ label: "Pain TB", data: srcKeys.map(k => +(painBySrc[k].reduce((a, b) => a + b, 0) / painBySrc[k].length).toFixed(2)), backgroundColor: C.ink, borderRadius: 8 }]
   }, { y: { beginAtZero: true } });
 
   // các lần crawl (actions): group theo giờ
@@ -76,7 +89,7 @@ function render(posts) {
   const runKeys = Object.keys(byRun).sort().slice(-24);
   drawChart("chartRuns", "bar", {
     labels: runKeys,
-    datasets: [{ label: "Posts mỗi lần chạy", data: runKeys.map(k => byRun[k]), backgroundColor: "#35c48dcc" }]
+    datasets: [{ label: "Posts mỗi lần chạy", data: runKeys.map(k => byRun[k]), backgroundColor: C.body, borderRadius: 8 }]
   }, { y: { beginAtZero: true }, x: { ticks: { maxRotation: 60 } } });
 
   // bảng top pain
@@ -103,13 +116,18 @@ function render(posts) {
 
 function drawChart(id, type, data, options = {}) {
   if (charts[id]) charts[id].destroy();
+  const grid = { color: C.soft };
+  const baseScales = {
+    x: Object.assign({ grid: Object.assign({}, grid) }, options.x || {}),
+    y: Object.assign({ beginAtZero: true, grid: Object.assign({}, grid) }, options.y || {}),
+  };
   charts[id] = new Chart(document.getElementById(id), {
     type,
     data,
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: type !== "line" && type !== "bar" } },
-      scales: options,
+      plugins: { legend: { display: type === "doughnut", position: "right" } },
+      scales: type === "doughnut" ? {} : baseScales,
     },
   });
 }

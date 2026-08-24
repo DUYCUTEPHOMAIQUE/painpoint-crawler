@@ -1,67 +1,187 @@
+/* Pain Point Dashboard — Uber-inspired design language
+   Trắng-đen, pill 999px, card 16px, Inter */
+
 :root {
-  --bg: #0f1117;
-  --card: #1a1d27;
-  --border: #2a2e3d;
-  --text: #e6e8ee;
-  --muted: #9aa0b4;
-  --accent: #ff5a5f;
-  --blue: #4c8dff;
-  --green: #35c48d;
-  --yellow: #ffc24b;
-  --purple: #a06bff;
+  --primary: #000000;
+  --on-primary: #ffffff;
+  --ink: #000000;
+  --body-text: #5e5e5e;
+  --mute: #afafaf;
+  --hairline-mid: #4b4b4b;
+  --canvas: #ffffff;
+  --canvas-soft: #efefef;
+  --canvas-softer: #f3f3f3;
+  --surface-pressed: #e2e2e2;
+  --black-elevated: #282828;
+
+  --font-display: "Inter", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-text: "Inter", system-ui, "Helvetica Neue", Arial, sans-serif;
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
   min-height: 100vh;
 }
+
+h1 {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  letter-spacing: normal;
+}
+h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
+  margin-bottom: 16px;
+}
+.mut { color: var(--body-text); }
+
+/* ── Nav bar ─────────────────────────────── */
 header {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--canvas);
+  border-bottom: 1px solid var(--canvas-soft);
+}
+.nav-inner {
+  max-width: 1200px; margin: 0 auto;
+  padding: 16px 32px;
   display: flex; flex-wrap: wrap; gap: 16px;
   align-items: center; justify-content: space-between;
-  padding: 20px 28px;
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; background: rgba(15,17,23,.92); backdrop-filter: blur(6px);
-  z-index: 10;
 }
-h1 { font-size: 22px; }
-h2 { font-size: 15px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+.filters { display: flex; gap: 12px; }
 .filters select {
-  background: var(--card); color: var(--text);
-  border: 1px solid var(--border); border-radius: 8px;
-  padding: 8px 12px; margin-left: 8px; cursor: pointer;
+  appearance: none;
+  background: var(--canvas-soft);
+  color: var(--ink);
+  border: none;
+  border-radius: 999px;               /* pill */
+  padding: 12px 20px;
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
 }
-main { padding: 24px 28px; max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
+.filters select:hover { background: var(--surface-pressed); }
+
+/* ── Layout ─────────────────────────────── */
+main {
+  max-width: 1200px; margin: 0 auto;
+  padding: 32px;
+  display: flex; flex-direction: column; gap: 32px;
+}
+
+/* Hero band */
+.hero { background: var(--canvas); padding-top: 8px; }
+.hero h1 { max-width: 720px; }
+.hero p { color: var(--body-text); font-size: 18px; margin-top: 8px; max-width: 640px; }
+
+/* ── KPI cards ──────────────────────────── */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .kpi {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 14px; padding: 18px;
+  background: var(--canvas-soft);
+  border-radius: 16px;                 /* rounded.xl */
+  padding: 24px;
 }
-.kpi .v { font-size: 26px; font-weight: 700; }
-.kpi .l { font-size: 12px; color: var(--muted); margin-top: 4px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.kpi .v {
+  font-family: var(--font-display);
+  font-size: 36px; font-weight: 700; line-height: 44px;
+  color: var(--ink);
+}
+.kpi .l { font-size: 14px; font-weight: 500; color: var(--body-text); margin-top: 6px; }
+
+/* ── Cards & charts ─────────────────────── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+
 .card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 14px; padding: 18px;
+  background: var(--canvas);
+  border-radius: 16px;
+  padding: 24px;
 }
+.card.tinted { background: var(--canvas-softer); }
+
+/* Dark promo band — polarity flip giữa trang */
+.band-dark {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: 16px;
+  padding: 24px;
+}
+.band-dark h2 { color: var(--on-primary); }
+
 canvas { max-height: 280px; }
-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
-th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-tr:hover td { background: rgba(255,255,255,.03); }
-.pain { color: var(--accent); font-weight: 700; }
-.tag {
-  display: inline-block; padding: 2px 8px; border-radius: 20px;
-  font-size: 11px; font-weight: 600;
+
+/* ── Data table (ex-data-table-cell) ────── */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+thead th {
+  background: var(--canvas-soft);
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 14px;
+  text-align: left;
+  padding: 12px 16px;
 }
-.tag.reddit { background: #ff450033; color: #ff8b60; }
-.tag.hn { background: #ff660033; color: #ffa04d; }
-.tag.so { background: #4802fb22; color: #b79cff; }
-.tag.gh { background: #23863633; color: #63d68d; }
-td a { color: var(--blue); text-decoration: none; }
-td a:hover { text-decoration: underline; }
-.mut { color: var(--muted); }
-footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px; }
-#status { padding: 40px; text-align: center; color: var(--muted); }
+thead th:first-child { border-radius: 8px 0 0 0; }
+thead th:last-child { border-radius: 0 8px 0 0; }
+tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--surface-pressed);
+  color: var(--ink);
+  vertical-align: top;
+}
+tbody tr:hover td { background: var(--canvas-softer); }
+td a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.pain { font-family: var(--font-display); font-weight: 700; }
+
+/* Platform tag — chỉ phân biệt bằng sắc xám */
+.tag {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 999px;                /* category-button pill */
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--canvas-soft);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.tag.reddit { background: var(--ink); color: var(--on-primary); }
+.tag.hn { background: var(--hairline-mid); color: var(--on-primary); }
+.tag.so { background: var(--surface-pressed); color: var(--ink); }
+.tag.gh { background: var(--canvas-softer); color: var(--hairline-mid); border: 1px solid var(--surface-pressed); }
+
+#status { padding: 40px; text-align: center; color: var(--body-text); font-size: 18px; }
+
+footer {
+  background: var(--primary);
+  color: var(--on-dark);
+  font-size: 14px;
+  padding: 32px;
+  text-align: center;
+}
+
+/* ── Table trên nền đen (band-dark) ─────── */
+.band-dark thead th {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--on-primary);
+}
+.band-dark tbody td {
+  color: var(--on-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+.band-dark tbody tr:hover td { background: rgba(255, 255, 255, 0.06); }
+.band-dark td a { color: var(--on-primary); }
+.band-dark .tag.reddit { background: var(--on-primary); color: var(--ink); }
+.band-dark .tag.hn { background: var(--mute); color: var(--ink); }
+.band-dark .tag.so { background: transparent; color: var(--on-primary); border: 1px solid var(--mute); }
+.band-dark .tag.gh { background: transparent; color: var(--mute); border: 1px solid var(--hairline-mid); }
+.band-dark .pain { color: var(--on-primary); }
