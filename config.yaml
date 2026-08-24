@@ -49,7 +49,3 @@ sources:
       - docker
       - aws
       - devops
-  github:
-    queries:
-      - "state:open is:issue label:bug"
-      - "state:open is:issue"

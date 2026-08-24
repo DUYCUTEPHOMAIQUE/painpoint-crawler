@@ -305,7 +305,7 @@ def cmd_daily(args):
     gh_queries = scfg.get("github", {}).get("queries", [])
     raw_sources = getattr(args, "sources", None)
     if raw_sources in (None, "auto"):
-        sources = ["auto", "hn", "so", "gh"]
+        sources = ["auto", "hn", "so"]
     else:
         sources = [s.strip() for s in raw_sources.split(",") if s.strip()]
         unknown = [s for s in sources if s not in KNOWN_SOURCES]
@@ -575,7 +575,7 @@ def main():
     p_daily.add_argument("--subreddits", default=None,
                          help="Ghi đè danh sách subreddit (mặc định: config.yaml)")
     p_daily.add_argument("--sources", dest="sources", default="auto",
-                         help="Giới hạn nguồn (dấu phẩy): reddit, arctic, hn, so, gh. Mặc định: tất cả")
+                         help="Giới hạn nguồn (dấu phẩy): reddit, arctic, hn, so, gh. Mặc định: reddit/arctic + hn + so (không gồm gh)")
     p_daily.add_argument("--comments", action=argparse.BooleanOptionalAction, default=True,
                          help="Lấy thêm comments/answers cho hn/so/gh (mặc định: bật). Reddit vẫn tắt trừ khi dùng discover --with-comments")
     p_daily.set_defaults(func=cmd_daily)
