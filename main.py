@@ -1,12 +1,13 @@
 import argparse
 import os
+import re
 import time
 
 import yaml
 from rich.console import Console
 from rich.table import Table
 
-from crawler import appstore, arctic, bluesky, crawler, devto, github, hackernews, lemmy, lobsters, mediumfeed, playstore, stackexchange, storage
+from crawler import appstore, arctic, bluesky, crawler, devto, github, hackernews, lemmy, llm_engine, lobsters, mediumfeed, playstore, stackexchange, storage
 from crawler.client import get_reddit, has_credentials
 
 console = Console()
@@ -722,6 +723,42 @@ def cmd_stats(args):
         console.print(t2)
 
 
+def cmd_digest(args):
+    storage.init_db()
+    days = args.days
+    since = time.time() - days * 86400
+    posts = [p for p in storage.load_posts(min_pain=args.min_pain)
+             if p["collected_at"] >= since]
+    if not posts:
+        console.print("[yellow]Không có posts nào trong cửa sổ thời gian.[/yellow]")
+        return
+    console.print(f"[bold]LLM Digest:[/bold] phân tích {len(posts)} posts ({days} ngày qua)...")
+    md, themes = llm_engine.build_digest(posts)
+    if not md:
+        console.print("[red]LLM không trả về chủ đề nào. Thử lại hoặc tăng --limit.[/red]")
+        return
+    date_str = time.strftime("%Y-%m-%d")
+    out_dir = os.path.join("data", "reports")
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, f"digest-{date_str}.md")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(md + "\n")
+    console.print(f"[green]Đã tạo báo cáo:[/green] {path} ({len(themes)} chủ đề)")
+
+    if args.send:
+        token = os.getenv("TELEGRAM_BOT_TOKEN")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID")
+        if not (token and chat_id):
+            console.print("[yellow]Chưa có TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID -> bỏ qua gửi.[/yellow]")
+            return
+        import requests as _rq
+        plain = re.sub(r"[#*`>\[]", "", md)[:12000]
+        for i in range(0, len(plain), 3900):
+            _rq.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                     json={"chat_id": chat_id, "text": plain[i:i + 3900]}, timeout=30)
+        console.print(f"[green]Đã gửi {len(plain)//3900 + 1} tin nhắn Telegram.[/green]")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Crawl đa nền tảng (Reddit, Hacker News, StackOverflow, GitHub) tìm pain points")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -771,6 +808,14 @@ def main():
     p_tr.add_argument("--days", type=int, default=7, help="Cửa sổ 'repo mới tạo trong N ngày' (mặc định: 7)")
     p_tr.add_argument("--limit", type=int, default=20, help="Số repo (mặc định: 20)")
     p_tr.set_defaults(func=cmd_trending)
+
+    p_dg = sub.add_parser("digest",
+                          help="Dùng LLM phân tích + tổng hợp pain points thành báo cáo chất lượng cao")
+    p_dg.add_argument("--days", type=int, default=2, help="Phân tích posts trong N ngày qua (mặc định: 2)")
+    p_dg.add_argument("--min-pain", type=float, default=0.0)
+    p_dg.add_argument("--send", action="store_true",
+                      help="Gửi báo cáo qua Telegram (cần TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)")
+    p_dg.set_defaults(func=cmd_digest)
 
     p_e = sub.add_parser("export", help="Xuất dữ liệu đã lưu ra CSV/JSON")
     p_e.add_argument("--format", choices=["csv", "json"], default="csv")

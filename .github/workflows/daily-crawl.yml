@@ -42,3 +42,20 @@ jobs:
           git add -f data/painpoints.db data/reports/ || true
           git commit -m "[cron] crawl $(date -u +%Y-%m-%d_%H:%M)" || echo "Khong co gi moi"
           git push
+
+      - name: Setup opencode CLI cho LLM digest
+        if: env.OPENCODE_GO_KEY != ''
+        env:
+          OPENCODE_GO_KEY: ${{ secrets.OPENCODE_GO_KEY }}
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          mkdir -p ~/.local/share/opencode
+          printf '{"opencode-go": {"type": "api", "key": "%s"}}' "$OPENCODE_GO_KEY" > ~/.local/share/opencode/auth.json
+          echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+
+      - name: LLM Digest + gui Telegram
+        run: python main.py digest --days 2 --min-pain 3 --send
+        env:
+          LLM_MODEL: ${{ secrets.LLM_MODEL || 'opencode-go/hy3' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
