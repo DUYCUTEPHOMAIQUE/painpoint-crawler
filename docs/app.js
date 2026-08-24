@@ -1,4 +1,4 @@
-const PLATFORM_LABEL = { reddit: "Reddit", hn: "Hacker News", so: "StackOverflow", dv: "DEV.to", medium: "Medium", gh: "GitHub" };
+const PLATFORM_LABEL = { reddit: "Reddit", hn: "Hacker News", so: "StackOverflow", devto: "DEV.to", medium: "Medium", gh: "GitHub" };
 
 // Claude palette
 const C = {
